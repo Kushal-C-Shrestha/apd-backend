@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VehicleAPI.Data;
+using VehicleAPI.Services.Implementations;
+using VehicleAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +15,12 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Inventory & Vendor management services
+builder.Services.AddScoped<IPartService, PartService>();
+builder.Services.AddScoped<IVendorService, VendorService>();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
