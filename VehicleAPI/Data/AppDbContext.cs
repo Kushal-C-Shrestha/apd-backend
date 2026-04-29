@@ -50,6 +50,10 @@ namespace VehicleAPI.Data
                 .HasIndex(u => u.Phone)
                 .IsUnique();
 
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.CustomerId)
+                .IsUnique();
+
             modelBuilder.Entity<Vehicle>()
                 .HasOne(v => v.User)
                 .WithMany(u => u.Vehicles)
