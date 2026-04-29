@@ -3,24 +3,27 @@ using VehicleAPI.Data;
 using VehicleAPI.Services.Implementations;
 using VehicleAPI.Services.Interfaces;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Inventory & Vendor management services
+// Services
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IVendorService, VendorService>();
 
-builder.Services.AddCors(options => {
-    options.AddDefaultPolicy(policy => {
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod();
@@ -29,6 +32,7 @@ builder.Services.AddCors(options => {
 
 var app = builder.Build();
 
+// Middleware
 app.UseCors();
 
 if (app.Environment.IsDevelopment())
@@ -36,8 +40,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
