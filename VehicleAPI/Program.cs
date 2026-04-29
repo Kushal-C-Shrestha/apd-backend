@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Services
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<IPartService, PartService>();
 builder.Services.AddScoped<IVendorService, VendorService>();
@@ -22,7 +23,7 @@ builder.Services.AddScoped<IVendorService, VendorService>();
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("AllowReact", policy =>
     {
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
@@ -33,13 +34,15 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Middleware
-app.UseCors();
+app.UseCors("AllowReact");
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 

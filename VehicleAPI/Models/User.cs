@@ -11,8 +11,12 @@ namespace VehicleAPI.Models
         [Required, MaxLength(100)]
         public string FullName { get; set; }
 
+        public string CustomerId { get; set; } = string.Empty;
+
         [Required, EmailAddress]
         public string Email { get; set; }
+
+        public string Address { get; set; }
 
         [Required, MaxLength(15)]
         public string Phone { get; set; }
