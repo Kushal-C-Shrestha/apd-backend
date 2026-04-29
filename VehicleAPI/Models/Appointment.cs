@@ -16,11 +16,14 @@ namespace VehicleAPI.Models
         [Required]
         public DateTime AppointmentDateTime { get; set; }
 
+        [MaxLength(200)]
+        public string? ServiceType { get; set; }
+
         public string Status { get; set; } = "Pending";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public User User { get; set; }
-        public Vehicle Vehicle { get; set; }
+        public User? User { get; set; }
+        public Vehicle? Vehicle { get; set; }
     }
 }
