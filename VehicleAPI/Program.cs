@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VehicleAPI.Data;
+using VehicleAPI.Services.Implementations;
+using VehicleAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +15,22 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Inventory & Vendor management services
+builder.Services.AddScoped<IPartService, PartService>();
+builder.Services.AddScoped<IVendorService, VendorService>();
+
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseCors();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
