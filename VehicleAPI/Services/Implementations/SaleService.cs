@@ -89,24 +89,92 @@ namespace VehicleAPI.Services.Implementations
                 await _context.SaveChangesAsync();
             }
 
-            return new SaleResponseDTO
-{
-    SaleId = sale.SaleId,
-    UserId = sale.UserId,
-    Discount = sale.Discount,
-    TotalAmount = sale.TotalAmount,
-    FinalAmount = sale.FinalAmount,
-    AmountPaid = sale.AmountPaid,
-    PaymentStatus = sale.PaymentStatus,
-    SaleDate = sale.SaleDate,
-    Items = sale.SaleItems.Select(si => new SaleItemResponseDTO
-    {
-        PartId = si.PartId,
-        Quantity = si.Quantity,
-        UnitPrice = si.UnitPrice,
-        Subtotal = si.Subtotal
-    }).ToList()
-};
+            return (await GetSaleByIdAsync(sale.SaleId))!;
         }
+
+        public async Task<List<SaleResponseDTO>> GetAllSalesAsync()
+        {
+            var sales = await _context.Sales
+                .Include(s => s.User)
+                .Include(s => s.SaleItems).ThenInclude(si => si.Part)
+                .Include(s => s.Credit)
+                .OrderByDescending(s => s.CreatedAt)
+                .ToListAsync();
+
+            return sales.Select(MapToResponse).ToList();
+        }
+
+        public async Task<SaleResponseDTO?> GetSaleByIdAsync(int saleId)
+        {
+            var sale = await _context.Sales
+                .Include(s => s.User)
+                .Include(s => s.SaleItems).ThenInclude(si => si.Part)
+                .Include(s => s.Credit)
+                .FirstOrDefaultAsync(s => s.SaleId == saleId);
+
+            return sale == null ? null : MapToResponse(sale);
+        }
+
+        public async Task<List<SaleResponseDTO>> GetSalesByUserIdAsync(int userId)
+        {
+            var sales = await _context.Sales
+                .Include(s => s.User)
+                .Include(s => s.SaleItems).ThenInclude(si => si.Part)
+                .Include(s => s.Credit)
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.CreatedAt)
+                .ToListAsync();
+
+            return sales.Select(MapToResponse).ToList();
+        }
+
+        public async Task<SaleResponseDTO?> SettleCreditAsync(int saleId)
+        {
+            var sale = await _context.Sales
+                .Include(s => s.Credit)
+                .FirstOrDefaultAsync(s => s.SaleId == saleId);
+
+            if (sale == null) return null;
+
+            if (sale.Credit == null || sale.Credit.IsPaid)
+                throw new InvalidOperationException("No outstanding credit for this sale.");
+
+            sale.Credit.IsPaid = true;
+            sale.AmountPaid = sale.FinalAmount;
+            sale.PaymentStatus = "Paid";
+
+            await _context.SaveChangesAsync();
+
+            return (await GetSaleByIdAsync(saleId))!;
+        }
+
+        private static SaleResponseDTO MapToResponse(Sale sale) => new()
+        {
+            SaleId = sale.SaleId,
+            UserId = sale.UserId,
+            UserName = sale.User?.FullName ?? "",
+            TotalAmount = sale.TotalAmount,
+            Discount = sale.Discount,
+            FinalAmount = sale.FinalAmount,
+            AmountPaid = sale.AmountPaid,
+            PaymentStatus = sale.PaymentStatus,
+            CreatedAt = sale.CreatedAt,
+            Items = sale.SaleItems.Select(si => new SaleItemResponseDTO
+            {
+                SaleItemId = si.SaleItemId,
+                PartId = si.PartId,
+                PartName = si.Part?.Name ?? "",
+                Quantity = si.Quantity,
+                UnitPrice = si.UnitPrice,
+                Subtotal = si.Subtotal
+            }).ToList(),
+            Credit = sale.Credit == null ? null : new CreditResponseDTO
+            {
+                CreditId = sale.Credit.CreditId,
+                AmountDue = sale.Credit.AmountDue,
+                IsPaid = sale.Credit.IsPaid,
+                CreatedAt = sale.Credit.CreatedAt
+            }
+        };
     }
 }
