@@ -45,5 +45,36 @@ namespace VehicleAPI.Controllers
                 return StatusCode(500, new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));
             }
         }
+
+        // GET /api/request/user/{userId}
+        [HttpGet("user/{userId}")]
+        public async Task<ActionResult<ApiResponse<List<PartRequestResponseDTO>>>> GetByUser(int userId)
+        {
+            try
+            {
+                var result = await _service.GetRequestsByUserAsync(userId);
+                return Ok(new ApiResponse<List<PartRequestResponseDTO>>(true, "Part requests retrieved successfully", result, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<List<PartRequestResponseDTO>>(false, ex.Message, null, null));
+            }
+        }
+
+        // GET /api/request
+        [HttpGet]
+        public async Task<ActionResult<ApiResponse<List<PartRequestResponseDTO>>>> GetAll()
+        {
+            try
+            {
+                var result = await _service.GetAllRequestsAsync();
+                return Ok(new ApiResponse<List<PartRequestResponseDTO>>(true, "Part requests retrieved successfully", result, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<List<PartRequestResponseDTO>>(false, ex.Message, null, null));
+            }
+        }
+
     }
 }

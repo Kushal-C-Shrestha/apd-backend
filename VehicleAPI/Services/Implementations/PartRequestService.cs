@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Net.Mail;
 using VehicleAPI.Data;
 using VehicleAPI.DTOs.Request;
 using VehicleAPI.DTOs.Response;
@@ -10,10 +12,12 @@ namespace VehicleAPI.Services.Implementations
     public class PartRequestService : IPartRequestService
     {
         private readonly AppDbContext _db;
+        private readonly IConfiguration _config;
 
-        public PartRequestService(AppDbContext db)
+        public PartRequestService(AppDbContext db, IConfiguration config)
         {
             _db = db;
+            _config = config;
         }
 
         public async Task<PartRequestResponseDTO> CreateRequestAsync(CreatePartRequestDTO dto)
@@ -46,7 +50,7 @@ namespace VehicleAPI.Services.Implementations
 
                 await transaction.CommitAsync();
 
-                return MapToDTO(request, part.Name);
+                return MapToDTO(request, part.Name, part.StockQuantity);
             }
             catch (Exception)
             {
@@ -55,13 +59,37 @@ namespace VehicleAPI.Services.Implementations
             }
         }
 
-        private static PartRequestResponseDTO MapToDTO(PartRequest r, string partName) =>
+        public async Task<List<PartRequestResponseDTO>> GetRequestsByUserAsync(int userId)
+        {
+            var requests = await _db.PartRequests
+                .Include(r => r.Part)
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return requests.Select(r => MapToDTO(r, r.Part?.Name ?? "Unknown", r.Part?.StockQuantity ?? 0)).ToList();
+        }
+
+        public async Task<List<PartRequestResponseDTO>> GetAllRequestsAsync()
+        {
+            var requests = await _db.PartRequests
+                .Include(r => r.Part)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return requests.Select(r => MapToDTO(r, r.Part?.Name ?? "Unknown", r.Part?.StockQuantity ?? 0)).ToList();
+        }
+
+
+        private static PartRequestResponseDTO MapToDTO(PartRequest r, string partName, int stockQuantity) =>
             new()
             {
                 RequestId = r.RequestId,
                 UserId = r.UserId,
                 PartId = r.PartId,
                 PartName = partName,
+                PartStockQuantity = stockQuantity,
                 Quantity = r.Quantity,
                 Status = r.Status,
                 CreatedAt = r.CreatedAt
