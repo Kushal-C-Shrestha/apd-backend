@@ -8,5 +8,6 @@ namespace VehicleAPI.Services.Interfaces
         Task<PartRequestResponseDTO> CreateRequestAsync(CreatePartRequestDTO dto);
         Task<List<PartRequestResponseDTO>> GetRequestsByUserAsync(int userId);
         Task<List<PartRequestResponseDTO>> GetAllRequestsAsync();
+        Task<PartRequestResponseDTO?> UpdateRequestStatusAsync(int requestId, string status);
     }
 }

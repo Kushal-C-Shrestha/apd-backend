@@ -76,5 +76,32 @@ namespace VehicleAPI.Controllers
             }
         }
 
+        // PATCH /api/request/{requestId}/status
+        [HttpPatch("{requestId}/status")]
+        public async Task<ActionResult<ApiResponse<PartRequestResponseDTO>>> UpdateStatus(int requestId, [FromBody] UpdatePartRequestDTO dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(new ApiResponse<PartRequestResponseDTO>(false, "Invalid request data", null, errors));
+            }
+
+            try
+            {
+                var result = await _service.UpdateRequestStatusAsync(requestId, dto.Status);
+                if (result == null)
+                    return NotFound(new ApiResponse<PartRequestResponseDTO>(false, $"Part request with ID {requestId} not found.", null, null));
+                
+                return Ok(new ApiResponse<PartRequestResponseDTO>(true, "Part request status updated successfully", result, null));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));
+            }
+        }
     }
 }
