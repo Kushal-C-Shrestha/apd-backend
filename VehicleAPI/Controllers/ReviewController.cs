@@ -19,7 +19,7 @@ namespace VehicleAPI.Controllers
 
         // POST /api/review
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<ReviewResponseDTO>>> Create([FromBody] CreateReviewDTO dto)
+        public async Task<ActionResult<ApiResponse<ReviewResponseDTO>>> CreateReview([FromBody] CreateReviewDTO dto)
         {
             if (!ModelState.IsValid)
             {
@@ -47,6 +47,35 @@ namespace VehicleAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new ApiResponse<ReviewResponseDTO>(false, ex.Message, null, null));
+            }
+        }
+        // GET /api/review
+        [HttpGet]
+        public async Task<ActionResult<ApiResponse<List<ReviewResponseDTO>>>> GetAllReviews()
+        {
+            try
+            {
+                var result = await _service.GetAllReviewsAsync();
+                return Ok(new ApiResponse<List<ReviewResponseDTO>>(true, "Reviews retrieved successfully", result, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<List<ReviewResponseDTO>>(false, ex.Message, null, null));
+            }
+        }
+
+        // GET /api/review/user/{userId}
+        [HttpGet("user/{userId:int}")]
+        public async Task<ActionResult<ApiResponse<List<ReviewResponseDTO>>>> GetReviewsByUserId(int userId)
+        {
+            try
+            {
+                var result = await _service.GetReviewsByUserIdAsync(userId);
+                return Ok(new ApiResponse<List<ReviewResponseDTO>>(true, "Reviews retrieved successfully", result, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<List<ReviewResponseDTO>>(false, ex.Message, null, null));
             }
         }
     }

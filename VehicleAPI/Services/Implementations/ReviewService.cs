@@ -64,6 +64,29 @@ namespace VehicleAPI.Services.Implementations
             }
         }
 
+        public async Task<List<ReviewResponseDTO>> GetAllReviewsAsync()
+        {
+            var reviews = await _db.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Appointment)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return reviews.Select(MapToDTO).ToList();
+        }
+
+        public async Task<List<ReviewResponseDTO>> GetReviewsByUserIdAsync(int userId)
+        {
+            var reviews = await _db.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Appointment)
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return reviews.Select(MapToDTO).ToList();
+        }
+
         private static ReviewResponseDTO MapToDTO(Review r)
         {
             var appt = r.Appointment;
