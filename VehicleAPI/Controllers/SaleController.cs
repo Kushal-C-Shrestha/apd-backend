@@ -109,5 +109,22 @@ namespace VehicleAPI.Controllers
                 return BadRequest(new ApiResponse<SaleResponseDTO>(false, ex.Message, null, null));
             }
         }
+
+        [HttpPost("{id:int}/send-invoice")]
+        public async Task<ActionResult<ApiResponse<bool>>> SendInvoice(int id)
+        {
+            try
+            {
+                var success = await _saleService.SendInvoiceEmailAsync(id);
+                if (!success)
+                    return BadRequest(new ApiResponse<bool>(false, "Failed to send invoice email. Ensure the sale exists and the customer has a valid email.", false, null));
+
+                return Ok(new ApiResponse<bool>(true, "Invoice email sent successfully", true, null));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<bool>(false, ex.Message, false, null));
+            }
+        }
     }
 }

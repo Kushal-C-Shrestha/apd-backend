@@ -176,5 +176,88 @@ namespace VehicleAPI.Services.Implementations
                 CreatedAt = sale.Credit.CreatedAt
             }
         };
+
+        public async Task<bool> SendInvoiceEmailAsync(int saleId)
+        {
+            var sale = await _context.Sales
+                .Include(s => s.User)
+                .Include(s => s.SaleItems).ThenInclude(si => si.Part)
+                .FirstOrDefaultAsync(s => s.SaleId == saleId);
+
+            if (sale == null || sale.User == null || string.IsNullOrEmpty(sale.User.Email))
+                return false;
+
+            try
+            {
+                var smtpHost = _config["Email:SmtpHost"];
+                var smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
+                var smtpUser = _config["Email:SmtpUser"];
+                var smtpPass = _config["Email:SmtpPass"];
+                var fromName = _config["Email:FromName"] ?? "Vehicle Service Center";
+
+                if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUser) || string.IsNullOrEmpty(smtpPass))
+                    return false;
+
+                using var client = new SmtpClient(smtpHost, smtpPort)
+                {
+                    Credentials = new NetworkCredential(smtpUser, smtpPass),
+                    EnableSsl = true
+                };
+
+                var itemsHtml = string.Join("", sale.SaleItems.Select(item => $@"
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{item.Part?.Name ?? "Unknown"}</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{item.Quantity}</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #ddd;'>${item.UnitPrice}</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #ddd;'>${item.Subtotal}</td>
+                    </tr>"));
+
+                var mail = new MailMessage
+                {
+                    From = new MailAddress(smtpUser, fromName),
+                    Subject = $"Invoice for Purchase #{sale.SaleId}",
+                    IsBodyHtml = true,
+                    Body = $@"
+                        <div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e5e7eb;padding:20px;'>
+                            <h2>Purchase Invoice #{sale.SaleId}</h2>
+                            <p><strong>Date:</strong> {sale.CreatedAt:MMM dd, yyyy}</p>
+                            <p><strong>Customer:</strong> {sale.User.FullName}</p>
+                            
+                            <table style='width: 100%; border-collapse: collapse; margin-top: 20px;'>
+                                <thead>
+                                    <tr style='background-color: #f8f9fa; text-align: left;'>
+                                        <th style='padding: 8px; border-bottom: 2px solid #ddd;'>Item</th>
+                                        <th style='padding: 8px; border-bottom: 2px solid #ddd;'>Qty</th>
+                                        <th style='padding: 8px; border-bottom: 2px solid #ddd;'>Unit Price</th>
+                                        <th style='padding: 8px; border-bottom: 2px solid #ddd;'>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {itemsHtml}
+                                </tbody>
+                            </table>
+
+                            <div style='margin-top: 20px; text-align: right;'>
+                                <p><strong>Subtotal:</strong> ${sale.TotalAmount}</p>
+                                <p><strong>Discount:</strong> ${sale.Discount}</p>
+                                <h3><strong>Total:</strong> ${sale.FinalAmount}</h3>
+                                <p><strong>Amount Paid:</strong> ${sale.AmountPaid}</p>
+                                <p><strong>Status:</strong> {sale.PaymentStatus}</p>
+                            </div>
+                            <br>
+                            <p>Thank you for your business!</p>
+                        </div>"
+                };
+
+                mail.To.Add(sale.User.Email);
+                await client.SendMailAsync(mail);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Invoice email sending failed: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
