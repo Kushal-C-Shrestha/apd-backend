@@ -83,7 +83,14 @@ namespace VehicleAPI.Services.Implementations
             }
 
             sale.TotalAmount = total;
-            sale.FinalAmount = total - dto.Discount;
+
+            if (total > 5000)
+            {
+                decimal loyaltyDiscount = total * 0.10m;
+                sale.Discount += loyaltyDiscount;
+            }
+
+            sale.FinalAmount = total - sale.Discount;
 
             if (dto.AmountPaid >= sale.FinalAmount)
             {
