@@ -42,5 +42,23 @@ namespace VehicleAPI.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        [HttpGet("{userId:int}/history")]
+        public async Task<IActionResult> GetHistory(int userId)
+        {
+            try
+            {
+                var history = await _customerService.GetCustomerHistoryAsync(userId);
+                if (history == null)
+                {
+                    return NotFound(new { success = false, message = "Customer not found." });
+                }
+                return Ok(new { success = true, message = "Customer history retrieved successfully", data = history });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

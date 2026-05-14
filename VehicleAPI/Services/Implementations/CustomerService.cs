@@ -202,5 +202,70 @@ namespace VehicleAPI.Services.Implementations
                 Year = vehicle?.Year
             };
         }
+        public async Task<CustomerHistoryResponseDTO?> GetCustomerHistoryAsync(int userId)
+        {
+            var user = await _db.Users
+                .Include(u => u.Vehicles)
+                .Include(u => u.Sales).ThenInclude(s => s.SaleItems).ThenInclude(si => si.Part)
+                .Include(u => u.Sales).ThenInclude(s => s.Credit)
+                .Include(u => u.Appointments).ThenInclude(a => a.Vehicle)
+                .FirstOrDefaultAsync(u => u.UserId == userId && u.RoleId == 3);
+
+            if (user == null) return null;
+
+            var response = new CustomerHistoryResponseDTO
+            {
+                Customer = MapToDTO(user, user.Vehicles.FirstOrDefault()),
+                Vehicles = user.Vehicles.Select(v => new VehicleResponseDTO
+                {
+                    VehicleId = v.VehicleId,
+                    VehicleNumber = v.VehicleNumber,
+                    Brand = v.Brand,
+                    Model = v.Model,
+                    Year = v.Year == 0 ? null : v.Year
+                }).ToList(),
+                Purchases = user.Sales.OrderByDescending(s => s.CreatedAt).Select(s => new SaleResponseDTO
+                {
+                    SaleId = s.SaleId,
+                    UserId = s.UserId,
+                    UserName = user.FullName,
+                    TotalAmount = s.TotalAmount,
+                    Discount = s.Discount,
+                    FinalAmount = s.FinalAmount,
+                    AmountPaid = s.AmountPaid,
+                    PaymentStatus = s.PaymentStatus,
+                    CreatedAt = s.CreatedAt,
+                    Items = s.SaleItems.Select(si => new SaleItemResponseDTO
+                    {
+                        SaleItemId = si.SaleItemId,
+                        PartId = si.PartId,
+                        PartName = si.Part?.Name ?? "",
+                        Quantity = si.Quantity,
+                        UnitPrice = si.UnitPrice,
+                        Subtotal = si.Subtotal
+                    }).ToList(),
+                    Credit = s.Credit == null ? null : new CreditResponseDTO
+                    {
+                        CreditId = s.Credit.CreditId,
+                        AmountDue = s.Credit.AmountDue,
+                        IsPaid = s.Credit.IsPaid,
+                        CreatedAt = s.Credit.CreatedAt
+                    }
+                }).ToList(),
+                Appointments = user.Appointments.OrderByDescending(a => a.AppointmentDate).Select(a => new AppointmentResponseDto
+                {
+                    AppointmentId = a.AppointmentId,
+                    UserId = a.UserId,
+                    UserName = user.FullName,
+                    VehicleId = a.VehicleId,
+                    VehicleNumber = a.Vehicle?.VehicleNumber ?? "",
+                    AppointmentDateTime = a.AppointmentDate,
+                    ServiceType = a.Description,
+                    Status = a.Status,
+                    CreatedAt = a.CreatedAt
+                }).ToList()
+            };
+            return response;
+        }
     }
 }
