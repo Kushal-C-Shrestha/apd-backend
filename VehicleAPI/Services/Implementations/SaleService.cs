@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Net.Mail;
 using VehicleAPI.Data;
 using VehicleAPI.DTOs.Request;
 using VehicleAPI.DTOs.Response;
@@ -10,10 +12,12 @@ namespace VehicleAPI.Services.Implementations
     public class SaleService : ISaleService
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _config;
 
-        public SaleService(AppDbContext context)
+        public SaleService(AppDbContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
         }
 
         public async Task<SaleResponseDTO> CreateSaleAsync(CreateSaleDTO dto)
@@ -56,10 +60,37 @@ namespace VehicleAPI.Services.Implementations
                 });
 
                 part.StockQuantity -= item.Quantity;
+                
+                if (part.StockQuantity < 10)
+                {
+                    var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+                    if (adminUser != null)
+                    {
+                        var message = $"Low Stock Alert: '{part.Name}' stock is down to {part.StockQuantity}.";
+                        _context.Notifications.Add(new Notification
+                        {
+                            UserId = adminUser.UserId,
+                            Message = message,
+                            CreatedAt = DateTime.UtcNow
+                        });
+
+                        if (!string.IsNullOrEmpty(adminUser.Email))
+                        {
+                            _ = SendLowStockNotificationEmailAsync(adminUser.Email, adminUser.FullName, part.Name, part.StockQuantity);
+                        }
+                    }
+                }
             }
 
             sale.TotalAmount = total;
-            sale.FinalAmount = total - dto.Discount;
+
+            if (total > 5000)
+            {
+                decimal loyaltyDiscount = total * 0.10m;
+                sale.Discount += loyaltyDiscount;
+            }
+
+            sale.FinalAmount = total - sale.Discount;
 
             if (dto.AmountPaid >= sale.FinalAmount)
             {
@@ -146,6 +177,53 @@ namespace VehicleAPI.Services.Implementations
             await _context.SaveChangesAsync();
 
             return (await GetSaleByIdAsync(saleId))!;
+        }
+
+        private async Task SendLowStockNotificationEmailAsync(string toEmail, string fullName, string partName, int remainingStock)
+        {
+            try
+            {
+                var smtpHost = _config["Email:SmtpHost"];
+                var smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
+                var smtpUser = _config["Email:SmtpUser"];
+                var smtpPass = _config["Email:SmtpPass"];
+                var fromName = _config["Email:FromName"] ?? "Vehicle Service Center";
+
+                var client = new SmtpClient(smtpHost, smtpPort)
+                {
+                    Credentials = new NetworkCredential(smtpUser, smtpPass),
+                    EnableSsl = true
+                };
+
+                var mail = new MailMessage
+                {
+                    From = new MailAddress(smtpUser!, fromName),
+                    Subject = "Low Stock Alert",
+                    IsBodyHtml = true,
+                    Body = $@"
+                        <div style='font-family:Arial,sans-serif;max-width:500px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;'>
+                            <div style='background:#ef4444;padding:24px;text-align:center;'>
+                                <h2 style='color:white;margin:0;'>Low Stock Alert</h2>
+                            </div>
+                            <div style='padding:28px;'>
+                                <p style='font-size:16px;'>Hello <strong>{fullName}</strong>,</p>
+                                <p>The stock for the following item has fallen below the minimum threshold (10):</p>
+                                <div style='background:#f1f5f9;border-radius:6px;padding:16px;margin:16px 0;'>
+                                    <p style='margin:4px 0;'><strong>Part Name:</strong> {partName}</p>
+                                    <p style='margin:4px 0;color:#ef4444;'><strong>Remaining Stock:</strong> {remainingStock}</p>
+                                </div>
+                                <p style='color:#6b7280;font-size:13px;'>Please restock this item soon to avoid running out of inventory.</p>
+                            </div>
+                        </div>"
+                };
+
+                mail.To.Add(toEmail);
+                await client.SendMailAsync(mail);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Low stock email sending failed: {ex.Message}");
+            }
         }
 
         private static SaleResponseDTO MapToResponse(Sale sale) => new()
