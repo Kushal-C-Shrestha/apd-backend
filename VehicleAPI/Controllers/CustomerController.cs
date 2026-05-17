@@ -16,48 +16,89 @@ namespace VehicleAPI.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterCustomerDTO dto)
+        public async Task<IActionResult> Register(
+            [FromBody] RegisterCustomerDTO dto)
         {
             try
             {
-                var result = await _customerService.RegisterCustomerAsync(dto);
-                return Ok(new { success = true, message = "Customer registered successfully.", data = result });
+                var result =
+                    await _customerService.RegisterCustomerAsync(dto);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Customer registered successfully.",
+                    data = result
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
             }
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string query = "", [FromQuery] string filter = "all")
+        public async Task<IActionResult> Search(
+            [FromQuery] string query = "",
+            [FromQuery] string filter = "all")
         {
             try
             {
-                var results = await _customerService.SearchCustomersAsync(query, filter);
-                return Ok(new { success = true, data = results });
+                var results =
+                    await _customerService.SearchCustomersAsync(
+                        query,
+                        filter);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = results
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
             }
         }
 
-        [HttpGet("{userId:int}/history")]
-        public async Task<IActionResult> GetHistory(int userId)
+        [HttpGet("{id:int}/history")]
+        public async Task<IActionResult> GetCustomerHistory(int id)
         {
             try
             {
-                var history = await _customerService.GetCustomerHistoryAsync(userId);
+                var history =
+                    await _customerService.GetCustomerHistoryAsync(id);
+
                 if (history == null)
                 {
-                    return NotFound(new { success = false, message = "Customer not found." });
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = $"Customer with ID {id} not found."
+                    });
                 }
-                return Ok(new { success = true, message = "Customer history retrieved successfully", data = history });
+
+                return Ok(new
+                {
+                    success = true,
+                    data = history
+                });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
             }
         }
     }
