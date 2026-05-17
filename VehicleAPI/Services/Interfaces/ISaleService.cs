@@ -10,5 +10,6 @@ namespace VehicleAPI.Services.Interfaces
         Task<SaleResponseDTO?> GetSaleByIdAsync(int saleId);
         Task<List<SaleResponseDTO>> GetSalesByUserIdAsync(int userId);
         Task<SaleResponseDTO?> SettleCreditAsync(int saleId);
+        Task<bool> SendInvoiceEmailAsync(int saleId);
     }
 }
