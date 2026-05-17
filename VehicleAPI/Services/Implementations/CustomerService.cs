@@ -13,11 +13,19 @@ namespace VehicleAPI.Services.Implementations
     {
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
+        private readonly ISaleService _saleService;
+        private readonly IAppointmentService _appointmentService;
 
-        public CustomerService(AppDbContext db, IConfiguration config)
+        public CustomerService(
+            AppDbContext db,
+            IConfiguration config,
+            ISaleService saleService,
+            IAppointmentService appointmentService)
         {
             _db = db;
             _config = config;
+            _saleService = saleService;
+            _appointmentService = appointmentService;
         }
 
         public async Task<CustomerResponseDTO> RegisterCustomerAsync(RegisterCustomerDTO dto)
@@ -63,12 +71,18 @@ namespace VehicleAPI.Services.Implementations
             _db.Vehicles.Add(vehicle);
             await _db.SaveChangesAsync();
 
-            await SendWelcomeEmailAsync(user.Email, user.FullName, customerId, rawPassword);
+            await SendWelcomeEmailAsync(
+                user.Email,
+                user.FullName,
+                customerId,
+                rawPassword);
 
             return MapToDTO(user, vehicle);
         }
 
-        public async Task<List<CustomerResponseDTO>> SearchCustomersAsync(string query, string filter)
+        public async Task<List<CustomerResponseDTO>> SearchCustomersAsync(
+            string query,
+            string filter)
         {
             var usersQuery = _db.Users
                 .Include(u => u.Vehicles)
@@ -90,13 +104,15 @@ namespace VehicleAPI.Services.Implementations
                         u.CustomerId.ToLower().Contains(q)),
 
                     "vehicle" => usersQuery.Where(u =>
-                        u.Vehicles.Any(v => v.VehicleNumber.ToLower().Contains(q))),
+                        u.Vehicles.Any(v =>
+                            v.VehicleNumber.ToLower().Contains(q))),
 
                     _ => usersQuery.Where(u =>
                         u.FullName.ToLower().Contains(q) ||
                         u.Phone.ToLower().Contains(q) ||
                         u.CustomerId.ToLower().Contains(q) ||
-                        u.Vehicles.Any(v => v.VehicleNumber.ToLower().Contains(q)))
+                        u.Vehicles.Any(v =>
+                            v.VehicleNumber.ToLower().Contains(q)))
                 };
             }
 
@@ -109,73 +125,160 @@ namespace VehicleAPI.Services.Implementations
             }).ToList();
         }
 
+        public async Task<CustomerHistoryResponseDTO?> GetCustomerHistoryAsync(int userId)
+        {
+            var user = await _db.Users
+                .Include(u => u.Vehicles)
+                .FirstOrDefaultAsync(u => u.UserId == userId && u.RoleId == 3);
+
+            if (user == null)
+                return null;
+
+            var primaryVehicle = user.Vehicles.FirstOrDefault();
+
+            var customerDto = MapToDTO(user, primaryVehicle);
+
+            var vehicles = user.Vehicles.Select(v => new VehicleResponseDTO
+            {
+                VehicleId = v.VehicleId,
+                VehicleNumber = v.VehicleNumber,
+                Brand = v.Brand,
+                Model = v.Model,
+                Year = v.Year
+            }).ToList();
+
+            var appointmentsResponse =
+                await _appointmentService.GetAppointmentsByUserIdAsync(userId);
+
+            var appointments = appointmentsResponse.Success
+                ? appointmentsResponse.Data
+                : new List<AppointmentResponseDto>();
+
+            var purchases =
+                await _saleService.GetSalesByUserIdAsync(userId);
+
+            return new CustomerHistoryResponseDTO
+            {
+                Customer = customerDto,
+                Vehicles = vehicles,
+                Appointments = appointments!,
+                Purchases = purchases
+            };
+        }
+
         private async Task<string> GenerateUniqueCustomerIdAsync()
         {
             string id;
             var rng = new Random();
+
             do
             {
                 id = "CUS-" + rng.Next(1000, 9999);
             }
             while (await _db.Users.AnyAsync(u => u.CustomerId == id));
+
             return id;
         }
 
         private static string GeneratePassword()
         {
-            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#!";
+            const string chars =
+                "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#!";
+
             var rng = new Random();
-            return new string(Enumerable.Range(0, 10)
-                .Select(_ => chars[rng.Next(chars.Length)]).ToArray());
+
+            return new string(
+                Enumerable.Range(0, 10)
+                    .Select(_ => chars[rng.Next(chars.Length)])
+                    .ToArray());
         }
 
         private static string HashPassword(string password)
         {
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            using var sha256 =
+                System.Security.Cryptography.SHA256.Create();
+
             var bytes = System.Text.Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
+
             return Convert.ToBase64String(hash);
         }
 
-        private async Task SendWelcomeEmailAsync(string toEmail, string fullName, string customerId, string rawPassword)
+        private async Task SendWelcomeEmailAsync(
+            string toEmail,
+            string fullName,
+            string customerId,
+            string rawPassword)
         {
             try
             {
                 var smtpHost = _config["Email:SmtpHost"];
-                var smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
+                var smtpPort =
+                    int.Parse(_config["Email:SmtpPort"] ?? "587");
+
                 var smtpUser = _config["Email:SmtpUser"];
                 var smtpPass = _config["Email:SmtpPass"];
-                var fromName = _config["Email:FromName"] ?? "Vehicle Service Center";
+
+                var fromName =
+                    _config["Email:FromName"] ??
+                    "Vehicle Service Center";
 
                 var client = new SmtpClient(smtpHost, smtpPort)
                 {
-                    Credentials = new NetworkCredential(smtpUser, smtpPass),
+                    Credentials =
+                        new NetworkCredential(smtpUser, smtpPass),
+
                     EnableSsl = true
                 };
 
                 var mail = new MailMessage
                 {
                     From = new MailAddress(smtpUser!, fromName),
-                    Subject = "Welcome to Vehicle Service Center – Your Account Details",
+
+                    Subject =
+                        "Welcome to Vehicle Service Center – Your Account Details",
+
                     IsBodyHtml = true,
+
                     Body = $@"
                         <div style='font-family:Arial,sans-serif;max-width:500px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;'>
                             <div style='background:#2563eb;padding:24px;text-align:center;'>
-                                <h2 style='color:white;margin:0;'>Vehicle Service Center</h2>
+                                <h2 style='color:white;margin:0;'>
+                                    Vehicle Service Center
+                                </h2>
                             </div>
+
                             <div style='padding:28px;'>
-                                <p style='font-size:16px;'>Hello <strong>{fullName}</strong>,</p>
-                                <p>Your account has been successfully created. Here are your login credentials:</p>
+                                <p style='font-size:16px;'>
+                                    Hello <strong>{fullName}</strong>,
+                                </p>
+
+                                <p>
+                                    Your account has been successfully created.
+                                    Here are your login credentials:
+                                </p>
+
                                 <div style='background:#f1f5f9;border-radius:6px;padding:16px;margin:16px 0;'>
-                                    <p style='margin:4px 0;'><strong>Customer ID:</strong> {customerId}</p>
-                                    <p style='margin:4px 0;'><strong>Password:</strong> {rawPassword}</p>
+                                    <p style='margin:4px 0;'>
+                                        <strong>Customer ID:</strong>
+                                        {customerId}
+                                    </p>
+
+                                    <p style='margin:4px 0;'>
+                                        <strong>Password:</strong>
+                                        {rawPassword}
+                                    </p>
                                 </div>
-                                <p style='color:#6b7280;font-size:13px;'>Please change your password after your first login.</p>
+
+                                <p style='color:#6b7280;font-size:13px;'>
+                                    Please change your password after your first login.
+                                </p>
                             </div>
                         </div>"
                 };
 
                 mail.To.Add(toEmail);
+
                 await client.SendMailAsync(mail);
             }
             catch (Exception ex)
@@ -184,7 +287,9 @@ namespace VehicleAPI.Services.Implementations
             }
         }
 
-        private static CustomerResponseDTO MapToDTO(User user, Vehicle? vehicle)
+        private static CustomerResponseDTO MapToDTO(
+            User user,
+            Vehicle? vehicle)
         {
             return new CustomerResponseDTO
             {
@@ -196,6 +301,7 @@ namespace VehicleAPI.Services.Implementations
                 Address = user.Address,
                 IsActive = true,
                 CreatedAt = user.CreatedAt,
+
                 VehicleNumber = vehicle?.VehicleNumber ?? "",
                 Brand = vehicle?.Brand ?? "",
                 Model = vehicle?.Model ?? "",
