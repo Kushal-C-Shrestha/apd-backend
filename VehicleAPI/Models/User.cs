@@ -24,6 +24,8 @@ namespace VehicleAPI.Models
         [Required]
         public string PasswordHash { get; set; }
 
+        public string? PhotoUrl { get; set; }
+
         public int RoleId { get; set; }
 
         [ForeignKey("RoleId")]

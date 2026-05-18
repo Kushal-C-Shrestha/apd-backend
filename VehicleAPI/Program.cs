@@ -26,6 +26,10 @@ builder.Services.AddScoped<IVendorService, VendorService>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddScoped<IProfileService, ProfileService>();
+
+builder.Services.AddScoped<IVehicleService, VehicleService>();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -69,6 +73,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
 
 
 app.UseAuthentication();
