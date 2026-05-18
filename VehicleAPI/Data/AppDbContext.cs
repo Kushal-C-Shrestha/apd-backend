@@ -31,6 +31,7 @@ namespace VehicleAPI.Data
         public DbSet<Notification> Notifications { get; set; }
 
         public DbSet<PartRequest> PartRequests { get; set; }
+        public DbSet<OtpRecord> OtpRecords { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

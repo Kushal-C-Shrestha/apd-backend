@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using VehicleAPI.DTOs.Request;
 using VehicleAPI.Services.Interfaces;
 
 namespace VehicleAPI.Controllers
 {
+    [Authorize(Roles = "Admin,Staff")]
     [ApiController]
     [Route("api/[controller]")]
     public class CustomerController : ControllerBase
