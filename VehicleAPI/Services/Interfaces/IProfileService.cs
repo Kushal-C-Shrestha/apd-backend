@@ -7,6 +7,5 @@ namespace VehicleAPI.Services.Interfaces
     {
         Task<CustomerProfileResponseDTO> GetProfileAsync(int userId);
         Task<CustomerProfileResponseDTO> UpdateProfileAsync(int userId, UpdateProfileDTO dto);
-        Task<CustomerProfileResponseDTO> UploadPhotoAsync(int userId, IFormFile photo);
     }
 }

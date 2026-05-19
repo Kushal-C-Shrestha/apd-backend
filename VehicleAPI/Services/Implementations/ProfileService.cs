@@ -56,47 +56,18 @@ namespace VehicleAPI.Services.Implementations
             return MapToDTO(user);
         }
 
-        public async Task<CustomerProfileResponseDTO> UploadPhotoAsync(int userId, IFormFile photo)
-        {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-            if (user == null)
-                throw new Exception("User not found.");
 
-            var uploadsFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads", "profiles");
-            Directory.CreateDirectory(uploadsFolder);
-
-            if (!string.IsNullOrEmpty(user.PhotoUrl))
-            {
-                var oldPath = Path.Combine(_env.WebRootPath ?? "wwwroot", user.PhotoUrl.TrimStart('/'));
-                if (File.Exists(oldPath)) File.Delete(oldPath);
-            }
-
-            var ext = Path.GetExtension(photo.FileName).ToLowerInvariant();
-            var fileName = $"user_{userId}_{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await photo.CopyToAsync(stream);
-            }
-
-            user.PhotoUrl = $"/uploads/profiles/{fileName}";
-            await _db.SaveChangesAsync();
-
-            return MapToDTO(user);
-        }
 
         private static CustomerProfileResponseDTO MapToDTO(Models.User user)
         {
             return new CustomerProfileResponseDTO
             {
                 UserId = user.UserId,
-                CustomerId = user.CustomerId,
+
                 FullName = user.FullName,
                 Email = user.Email,
                 Phone = user.Phone,
-                Address = user.Address,
-                PhotoUrl = user.PhotoUrl
+                Address = user.Address
             };
         }
     }

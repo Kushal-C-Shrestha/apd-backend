@@ -48,30 +48,6 @@ namespace VehicleAPI.Controllers
             }
         }
 
-        [HttpPost("upload-photo")]
-        public async Task<IActionResult> UploadPhoto(IFormFile photo)
-        {
-            try
-            {
-                if (photo == null || photo.Length == 0)
-                    return BadRequest(new { success = false, message = "No photo provided." });
 
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
-                var ext = Path.GetExtension(photo.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(ext))
-                    return BadRequest(new { success = false, message = "Only JPG and PNG files are allowed." });
-
-                if (photo.Length > 2 * 1024 * 1024)
-                    return BadRequest(new { success = false, message = "File size must be less than 2MB." });
-
-                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-                var result = await _profileService.UploadPhotoAsync(userId, photo);
-                return Ok(new { success = true, message = "Photo uploaded successfully.", data = result });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
     }
 }
