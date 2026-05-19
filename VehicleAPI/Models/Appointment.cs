@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace VehicleAPI.Models
 {
@@ -16,8 +16,7 @@ namespace VehicleAPI.Models
         [Required]
         public DateTime AppointmentDateTime { get; set; }
 
-        [MaxLength(200)]
-        public string? ServiceType { get; set; }
+        public string ServiceType { get; set; } = string.Empty;
 
         public string Status { get; set; } = "Pending";
 

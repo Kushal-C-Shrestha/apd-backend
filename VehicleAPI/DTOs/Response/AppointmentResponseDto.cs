@@ -8,7 +8,7 @@ namespace VehicleAPI.DTOs.Response
         public int VehicleId { get; set; }
         public string VehicleNumber { get; set; } = string.Empty;
         public DateTime AppointmentDateTime { get; set; }
-        public string? ServiceType { get; set; }
+        public string ServiceType { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
     }

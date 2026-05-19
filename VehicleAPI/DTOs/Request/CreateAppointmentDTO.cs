@@ -16,7 +16,7 @@ namespace VehicleAPI.DTOs.Request
         [Required]
         public TimeOnly AppointmentTime { get; set; }
 
-        [MaxLength(200)]
-        public string? ServiceType { get; set; }
+        public string ServiceType { get; set; } = string.Empty;
+
     }
 }

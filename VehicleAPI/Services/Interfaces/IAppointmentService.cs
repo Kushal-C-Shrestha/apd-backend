@@ -9,5 +9,7 @@ namespace VehicleAPI.Services.Interfaces
         Task<ApiResponse<AppointmentResponseDto>> CreateAppointmentAsync(CreateAppointmentDto dto);
         Task<ApiResponse<List<AppointmentResponseDto>>> GetAllAppointmentsAsync();
         Task<ApiResponse<List<AppointmentResponseDto>>> GetAppointmentsByUserIdAsync(int userId);
+        Task<ApiResponse<AppointmentResponseDto>> RescheduleAppointmentAsync(int appointmentId, RescheduleAppointmentDto dto);
+        Task<ApiResponse<AppointmentResponseDto>> CancelAppointmentAsync(int appointmentId);
     }
 }
