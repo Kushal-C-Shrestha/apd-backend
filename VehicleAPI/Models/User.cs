@@ -11,7 +11,7 @@ namespace VehicleAPI.Models
         [Required, MaxLength(100)]
         public string FullName { get; set; }
 
-        public string CustomerId { get; set; } = string.Empty;
+
 
         [Required, EmailAddress]
         public string Email { get; set; }
@@ -24,11 +24,6 @@ namespace VehicleAPI.Models
         [Required]
         public string PasswordHash { get; set; }
 
-        public string? PhotoUrl { get; set; }
-
-        public string? StaffRole { get; set; }
-
-        public string Status { get; set; } = "Active";
 
         public int RoleId { get; set; }
 
@@ -36,6 +31,9 @@ namespace VehicleAPI.Models
         public Role Role { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 

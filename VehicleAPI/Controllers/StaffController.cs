@@ -31,7 +31,7 @@ namespace VehicleAPI.Controllers
             }
         }
 
-        [HttpPost("register")]
+        [HttpPost]
         public async Task<IActionResult> Register([FromBody] RegisterStaffDTO dto)
         {
             try

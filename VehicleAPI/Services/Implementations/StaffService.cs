@@ -42,14 +42,11 @@ namespace VehicleAPI.Services.Implementations
 
             var user = new User
             {
-                CustomerId = string.Empty,
                 FullName = $"{dto.FirstName.Trim()} {dto.LastName.Trim()}",
                 Email = dto.Email.Trim(),
                 Phone = dto.Phone.Trim(),
-                Address = string.Empty,
+                Address = dto.Address?.Trim() ?? string.Empty,
                 PasswordHash = passwordHash,
-                StaffRole = dto.StaffRole,
-                Status = dto.Status,
                 RoleId = 2,
                 CreatedAt = DateTime.UtcNow
             };
@@ -57,7 +54,7 @@ namespace VehicleAPI.Services.Implementations
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            await SendStaffWelcomeEmailAsync(user.Email, dto.FirstName.Trim(), dto.Email.Trim(), dto.Password, dto.StaffRole);
+            await SendStaffWelcomeEmailAsync(user.Email, dto.FirstName.Trim(), dto.Email.Trim(), dto.Password);
 
             return MapToDTO(user);
         }
@@ -85,9 +82,7 @@ namespace VehicleAPI.Services.Implementations
             user.FullName = $"{dto.FirstName.Trim()} {dto.LastName.Trim()}";
             user.Email = dto.Email.Trim();
             user.Phone = dto.Phone.Trim();
-            user.StaffRole = dto.StaffRole;
-            user.Status = dto.Status;
-
+            user.Address = dto.Address?.Trim() ?? string.Empty;
             await _db.SaveChangesAsync();
             return MapToDTO(user);
         }
@@ -102,7 +97,7 @@ namespace VehicleAPI.Services.Implementations
             await _db.SaveChangesAsync();
         }
 
-        private async Task SendStaffWelcomeEmailAsync(string toEmail, string firstName, string email, string password, string staffRole)
+        private async Task SendStaffWelcomeEmailAsync(string toEmail, string firstName, string email, string password)
         {
             try
             {
@@ -130,7 +125,7 @@ namespace VehicleAPI.Services.Implementations
                             </div>
                             <div style='padding:28px;'>
                                 <p style='font-size:16px;'>Hello <strong>{firstName}</strong>,</p>
-                                <p>You have been registered as a <strong>{staffRole}</strong> staff member. Here are your login credentials:</p>
+                                <p>You have been registered as a staff member. Here are your login credentials:</p>
                                 <div style='background:#f1f5f9;border-radius:6px;padding:16px;margin:16px 0;'>
                                     <p style='margin:4px 0;'><strong>Email:</strong> {email}</p>
                                     <p style='margin:4px 0;'><strong>Password:</strong> {password}</p>
@@ -168,8 +163,7 @@ namespace VehicleAPI.Services.Implementations
                 LastName = nameParts.Length > 1 ? nameParts[1] : "",
                 Email = user.Email,
                 Phone = user.Phone,
-                StaffRole = user.StaffRole ?? "",
-                Status = user.Status,
+                Address = user.Address ?? string.Empty,
                 CreatedAt = user.CreatedAt
             };
         }
