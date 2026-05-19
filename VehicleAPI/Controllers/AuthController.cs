@@ -16,6 +16,18 @@ namespace VehicleAPI.Controllers
             _authService = authService;
         }
 
+        private void SetRefreshTokenCookie(string refreshToken)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Expires = DateTime.UtcNow.AddDays(7),
+                SameSite = SameSiteMode.Lax,
+                Secure = false // Set to true in production
+            };
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+        }
+
         [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO dto)
@@ -23,10 +35,17 @@ namespace VehicleAPI.Controllers
             try
             {
                 var result = await _authService.LoginAsync(dto);
+                SetRefreshTokenCookie(result.RefreshToken);
                 return Ok(new { success = true, message = "Login successful.", data = result });
             }
             catch (Exception ex)
             {
+                if (ex.Message.Contains("|"))
+                {
+                    var parts = ex.Message.Split('|', 2);
+                    var errors = new Dictionary<string, string> { { parts[0], parts[1] } };
+                    return BadRequest(new { success = false, message = parts[1], errors = errors });
+                }
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
@@ -38,10 +57,17 @@ namespace VehicleAPI.Controllers
             try
             {
                 var result = await _authService.CustomerSelfRegisterAsync(dto);
+                SetRefreshTokenCookie(result.RefreshToken);
                 return Ok(new { success = true, message = "Account created successfully.", data = result });
             }
             catch (Exception ex)
             {
+                if (ex.Message.Contains("|"))
+                {
+                    var parts = ex.Message.Split('|', 2);
+                    var errors = new Dictionary<string, string> { { parts[0], parts[1] } };
+                    return BadRequest(new { success = false, message = parts[1], errors = errors });
+                }
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
@@ -88,6 +114,32 @@ namespace VehicleAPI.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequestDTO? dto)
+        {
+            try
+            {
+                var refreshToken = dto?.RefreshToken ?? Request.Cookies["refreshToken"];
+                if (string.IsNullOrEmpty(refreshToken))
+                {
+                    return Unauthorized(new { success = false, message = "No refresh token provided." });
+                }
+
+                var (newAccessToken, newRefreshToken) = await _authService.RefreshTokenAsync(refreshToken);
+                SetRefreshTokenCookie(newRefreshToken);
+
+                return Ok(new { 
+                    accessToken = newAccessToken, 
+                    refreshToken = newRefreshToken 
+                });
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { success = false, message = ex.Message });
             }
         }
     }

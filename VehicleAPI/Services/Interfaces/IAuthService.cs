@@ -10,5 +10,7 @@ namespace VehicleAPI.Services.Interfaces
         Task ForgotPasswordAsync(ForgotPasswordDTO dto);
         Task VerifyOtpAsync(VerifyOtpDTO dto);
         Task ResetPasswordAsync(ResetPasswordDTO dto);
+        Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken);
+        Task UpdateUserRefreshTokenAsync(int userId, string refreshToken, DateTime expiryTime);
     }
 }
