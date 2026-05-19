@@ -98,6 +98,10 @@ namespace VehicleAPI.Controllers
             {
                 return BadRequest(new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));
             }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, new ApiResponse<PartRequestResponseDTO>(false, ex.Message, null, null));

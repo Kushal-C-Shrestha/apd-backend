@@ -45,6 +45,7 @@ namespace VehicleAPI.Services.Implementations
                     CreatedAt = DateTime.UtcNow
                 };
 
+                request.User = user;
                 _db.PartRequests.Add(request);
                 await _db.SaveChangesAsync();
 
@@ -63,6 +64,7 @@ namespace VehicleAPI.Services.Implementations
         {
             var requests = await _db.PartRequests
                 .Include(r => r.Part)
+                .Include(r => r.User)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
@@ -97,6 +99,14 @@ namespace VehicleAPI.Services.Implementations
                     .FirstOrDefaultAsync(r => r.RequestId == requestId);
 
                 if (request == null) return null;
+
+                if ((status == "Approved" || status == "Fulfilled" || status == "Available") && request.Part != null)
+                {
+                    if (request.Part.StockQuantity < request.Quantity)
+                    {
+                        throw new InvalidOperationException($"Cannot settle part request: Insufficient stock. Requested: {request.Quantity}, Available: {request.Part.StockQuantity}. Please restock the part first.");
+                    }
+                }
 
                 request.Status = status;
 
@@ -186,7 +196,9 @@ namespace VehicleAPI.Services.Implementations
                 PartStockQuantity = stockQuantity,
                 Quantity = r.Quantity,
                 Status = r.Status,
-                CreatedAt = r.CreatedAt
+                CreatedAt = r.CreatedAt,
+                CustomerName = r.User?.FullName ?? "Unknown Customer",
+                CustomerEmail = r.User?.Email ?? ""
             };
     }
 }
