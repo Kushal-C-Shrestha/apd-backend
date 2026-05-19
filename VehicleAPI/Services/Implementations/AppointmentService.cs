@@ -33,11 +33,26 @@ namespace VehicleAPI.Services.Implementations
             if (!vehicleExists)
                 return new ApiResponse<AppointmentResponseDto>(false, "Vehicle not found.", null, null);
 
+            var startTime = new TimeOnly(9, 0);
+            var endTime = new TimeOnly(17, 0);
+            if (dto.AppointmentTime < startTime || dto.AppointmentTime > endTime)
+                return new ApiResponse<AppointmentResponseDto>(false, "Appointment time must be between 9:00 AM and 5:00 PM.", null, null);
+
+            var appointmentDate = dto.AppointmentDate.ToDateTime(TimeOnly.MinValue).Date;
+            var hasExisting = await dbContext.Appointments.AnyAsync(a =>
+                a.UserId == dto.UserId &&
+                a.VehicleId == dto.VehicleId &&
+                (a.Status == "Pending" || a.Status == "Confirmed") &&
+                a.AppointmentDateTime.Date == appointmentDate);
+
+            if (hasExisting)
+                return new ApiResponse<AppointmentResponseDto>(false, "You already have an active appointment booked for this vehicle on this day.", null, null);
+
             var appointment = new Appointment
             {
                 UserId = dto.UserId,
                 VehicleId = dto.VehicleId,
-                AppointmentDateTime = DateTime.SpecifyKind(dto.AppointmentDate.ToDateTime(dto.AppointmentTime), DateTimeKind.Utc),
+                AppointmentDateTime = dto.AppointmentDate.ToDateTime(dto.AppointmentTime),
                 ServiceType = string.IsNullOrWhiteSpace(dto.ServiceType) ? "General Service" : dto.ServiceType,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
@@ -50,7 +65,7 @@ namespace VehicleAPI.Services.Implementations
             dbContext.Notifications.Add(new Notification
             {
                 UserId = dto.UserId,
-                Message = $"Your appointment for {appointment.ServiceType} has been scheduled for {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                Message = $"Your appointment for {appointment.ServiceType} has been scheduled for {appointment.AppointmentDateTime:g}.",
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -62,7 +77,7 @@ namespace VehicleAPI.Services.Implementations
                 dbContext.Notifications.Add(new Notification
                 {
                     UserId = adminUser.UserId,
-                    Message = $"New appointment booking: {customerName} for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                    Message = $"New appointment booking: {customerName} for {appointment.ServiceType} on {appointment.AppointmentDateTime:g}.",
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -113,7 +128,12 @@ namespace VehicleAPI.Services.Implementations
             if (appointment.Status == "Cancelled")
                 return new ApiResponse<AppointmentResponseDto>(false, "Cannot reschedule a cancelled appointment.", null, null);
 
-            appointment.AppointmentDateTime = DateTime.SpecifyKind(dto.AppointmentDate.ToDateTime(dto.AppointmentTime), DateTimeKind.Utc);
+            var startTime = new TimeOnly(9, 0);
+            var endTime = new TimeOnly(17, 0);
+            if (dto.AppointmentTime < startTime || dto.AppointmentTime > endTime)
+                return new ApiResponse<AppointmentResponseDto>(false, "Appointment time must be between 9:00 AM and 5:00 PM.", null, null);
+
+            appointment.AppointmentDateTime = dto.AppointmentDate.ToDateTime(dto.AppointmentTime);
             if (!string.IsNullOrWhiteSpace(dto.ServiceType))
             {
                 appointment.ServiceType = dto.ServiceType;
@@ -135,7 +155,7 @@ namespace VehicleAPI.Services.Implementations
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
-                Message = $"Your appointment for {appointment.ServiceType} has been rescheduled to {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                Message = $"Your appointment for {appointment.ServiceType} has been rescheduled to {appointment.AppointmentDateTime:g}.",
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -147,7 +167,7 @@ namespace VehicleAPI.Services.Implementations
                 dbContext.Notifications.Add(new Notification
                 {
                     UserId = adminUser.UserId,
-                    Message = $"Appointment rescheduled: {customerName}'s appointment is now scheduled for {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                    Message = $"Appointment rescheduled: {customerName}'s appointment is now scheduled for {appointment.AppointmentDateTime:g}.",
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -179,7 +199,7 @@ namespace VehicleAPI.Services.Implementations
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
-                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} has been cancelled.",
+                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime:g} has been cancelled.",
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -191,7 +211,7 @@ namespace VehicleAPI.Services.Implementations
                 dbContext.Notifications.Add(new Notification
                 {
                     UserId = adminUser2.UserId,
-                    Message = $"Appointment cancelled: {customerName}'s appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} was cancelled.",
+                    Message = $"Appointment cancelled: {customerName}'s appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime:g} was cancelled.",
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -226,7 +246,7 @@ namespace VehicleAPI.Services.Implementations
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
-                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} has been marked as Completed.",
+                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime:g} has been marked as Completed.",
                 CreatedAt = DateTime.UtcNow
             });
 
