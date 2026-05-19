@@ -72,5 +72,59 @@ namespace VehicleAPI.Services.Implementations
                 TopStockedParts = topStocked
             };
         }
+
+        public async Task<CustomerReportsResponseDTO> GetCustomerReportsAsync()
+        {
+            var sales = await _context.Sales.Include(s => s.User).Include(s => s.Credit).ToListAsync();
+
+            // Group sales by user id
+            var grouped = sales.GroupBy(s => s.UserId).ToList();
+
+            var regulars = new List<RegularCustomerDTO>();
+            var highSpenders = new List<HighSpenderDTO>();
+            var pendingCredits = new List<PendingCreditCustomerDTO>();
+
+            foreach (var group in grouped)
+            {
+                var userId = group.Key;
+                var firstSale = group.FirstOrDefault();
+                var customerName = firstSale?.User?.FullName ?? "Walk-in Client";
+
+                var visits = group.Count();
+                var totalSpent = group.Sum(s => s.FinalAmount);
+                var pendingCreditSum = group.Where(s => s.PaymentStatus != "Paid" && s.Credit != null).Sum(s => s.Credit.AmountDue);
+
+                regulars.Add(new RegularCustomerDTO
+                {
+                    UserId = userId,
+                    CustomerName = customerName,
+                    VisitCount = visits
+                });
+
+                highSpenders.Add(new HighSpenderDTO
+                {
+                    UserId = userId,
+                    CustomerName = customerName,
+                    TotalSpent = totalSpent
+                });
+
+                if (pendingCreditSum > 0)
+                {
+                    pendingCredits.Add(new PendingCreditCustomerDTO
+                    {
+                        UserId = userId,
+                        CustomerName = customerName,
+                        PendingCredit = pendingCreditSum
+                    });
+                }
+            }
+
+            return new CustomerReportsResponseDTO
+            {
+                Regulars = regulars.OrderByDescending(c => c.VisitCount).Take(5).ToList(),
+                HighSpenders = highSpenders.OrderByDescending(c => c.TotalSpent).Take(5).ToList(),
+                PendingCredits = pendingCredits.OrderByDescending(c => c.PendingCredit).ToList()
+            };
+        }
     }
 }

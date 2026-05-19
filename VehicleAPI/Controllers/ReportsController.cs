@@ -33,5 +33,19 @@ namespace VehicleAPI.Controllers
                 return BadRequest(new ApiResponse<FinancialReportResponseDTO>(false, ex.Message, null, null));
             }
         }
+
+        [HttpGet("customers")]
+        public async Task<ActionResult<ApiResponse<CustomerReportsResponseDTO>>> GetCustomerReports()
+        {
+            try
+            {
+                var report = await _reportService.GetCustomerReportsAsync();
+                return Ok(new ApiResponse<CustomerReportsResponseDTO>(true, "Customer reports generated successfully", report, null));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<CustomerReportsResponseDTO>(false, ex.Message, null, null));
+            }
+        }
     }
 }
