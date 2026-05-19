@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace VehicleAPI.Models
 {
@@ -11,13 +11,17 @@ namespace VehicleAPI.Models
         public int UserId { get; set; }
 
         [Required]
+        public int AppointmentId { get; set; }
+
+        [Required]
         [Range(1, 5)]
         public int Rating { get; set; }
 
-        public string Comment { get; set; }
+        public string? Comment { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public User User { get; set; }
+        public User? User { get; set; }
+        public Appointment? Appointment { get; set; }
     }
 }
