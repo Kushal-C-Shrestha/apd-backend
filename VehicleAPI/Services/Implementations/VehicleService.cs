@@ -16,58 +16,83 @@ namespace VehicleAPI.Services.Implementations
             _db = db;
         }
 
-        public async Task<VehicleResponseDTO?> GetMyVehicleAsync(int userId)
+        public async Task<IEnumerable<VehicleResponseDTO>> GetMyVehiclesAsync(int userId)
         {
-            var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.UserId == userId);
-            if (vehicle == null) return null;
-            return MapToDTO(vehicle);
+            var vehicles = await _db.Vehicles.Where(v => v.UserId == userId && !v.IsDeleted).ToListAsync();
+            return vehicles.Select(MapToDTO);
         }
 
-        public async Task<VehicleResponseDTO> SaveVehicleAsync(int userId, SaveVehicleDTO dto)
+        public async Task<IEnumerable<VehicleResponseDTO>> GetAllVehiclesAsync()
+        {
+            var vehicles = await _db.Vehicles
+                .Include(v => v.User)
+                .Where(v => !v.IsDeleted)
+                .OrderBy(v => v.VehicleId)
+                .ToListAsync();
+            return vehicles.Select(MapToDTO);
+        }
+
+        public async Task<VehicleResponseDTO> CreateVehicleAsync(int userId, SaveVehicleDTO dto)
         {
             if (string.IsNullOrWhiteSpace(dto.VehicleNumber))
                 throw new Exception("Vehicle number is required.");
 
-            var existing = await _db.Vehicles.FirstOrDefaultAsync(v => v.UserId == userId);
+            var duplicate = await _db.Vehicles.AnyAsync(v => v.VehicleNumber == dto.VehicleNumber.Trim() && !v.IsDeleted);
+            if (duplicate)
+                throw new Exception("This vehicle number is already registered.");
 
-            if (existing != null)
+            var vehicle = new Vehicle
             {
-                if (dto.VehicleNumber.Trim() != existing.VehicleNumber)
-                {
-                    var duplicate = await _db.Vehicles.AnyAsync(v =>
-                        v.VehicleNumber == dto.VehicleNumber.Trim() && v.VehicleId != existing.VehicleId);
-                    if (duplicate)
-                        throw new Exception("This vehicle number is already registered.");
-                }
+                UserId = userId,
+                VehicleNumber = dto.VehicleNumber.Trim(),
+                Brand = dto.Brand.Trim(),
+                Model = dto.Model.Trim(),
+                Year = dto.Year ?? 0,
+                ImageUrl = dto.ImageUrl,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
 
-                existing.VehicleNumber = dto.VehicleNumber.Trim();
-                existing.Brand = dto.Brand.Trim();
-                existing.Model = dto.Model.Trim();
-                existing.Year = dto.Year ?? 0;
+            _db.Vehicles.Add(vehicle);
+            await _db.SaveChangesAsync();
+            return MapToDTO(vehicle);
+        }
 
-                await _db.SaveChangesAsync();
-                return MapToDTO(existing);
-            }
-            else
+        public async Task<VehicleResponseDTO> UpdateVehicleAsync(int userId, int vehicleId, SaveVehicleDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.VehicleNumber))
+                throw new Exception("Vehicle number is required.");
+
+            var existing = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId && v.UserId == userId && !v.IsDeleted);
+            if (existing == null)
+                throw new Exception("Vehicle not found.");
+
+            if (dto.VehicleNumber.Trim() != existing.VehicleNumber)
             {
-                var duplicate = await _db.Vehicles.AnyAsync(v => v.VehicleNumber == dto.VehicleNumber.Trim());
+                var duplicate = await _db.Vehicles.AnyAsync(v =>
+                    v.VehicleNumber == dto.VehicleNumber.Trim() && v.VehicleId != existing.VehicleId && !v.IsDeleted);
                 if (duplicate)
                     throw new Exception("This vehicle number is already registered.");
-
-                var vehicle = new Vehicle
-                {
-                    UserId = userId,
-                    VehicleNumber = dto.VehicleNumber.Trim(),
-                    Brand = dto.Brand.Trim(),
-                    Model = dto.Model.Trim(),
-                    Year = dto.Year ?? 0,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _db.Vehicles.Add(vehicle);
-                await _db.SaveChangesAsync();
-                return MapToDTO(vehicle);
             }
+
+            existing.VehicleNumber = dto.VehicleNumber.Trim();
+            existing.Brand = dto.Brand.Trim();
+            existing.Model = dto.Model.Trim();
+            existing.Year = dto.Year ?? 0;
+            existing.ImageUrl = dto.ImageUrl;
+
+            await _db.SaveChangesAsync();
+            return MapToDTO(existing);
+        }
+
+        public async Task DeleteVehicleAsync(int userId, int vehicleId)
+        {
+            var existing = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId && v.UserId == userId && !v.IsDeleted);
+            if (existing == null)
+                throw new Exception("Vehicle not found.");
+
+            existing.IsDeleted = true;
+            await _db.SaveChangesAsync();
         }
 
         private static VehicleResponseDTO MapToDTO(Vehicle vehicle)
@@ -79,7 +104,9 @@ namespace VehicleAPI.Services.Implementations
                 Brand = vehicle.Brand,
                 Model = vehicle.Model,
                 Year = vehicle.Year == 0 ? null : vehicle.Year,
-                UserId = vehicle.UserId
+                UserId = vehicle.UserId,
+                ImageUrl = vehicle.ImageUrl,
+                OwnerName = vehicle.User?.FullName
             };
         }
     }

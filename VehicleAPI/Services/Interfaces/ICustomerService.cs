@@ -6,7 +6,7 @@ namespace VehicleAPI.Services.Interfaces
     public interface ICustomerService
     {
         Task<CustomerResponseDTO> RegisterCustomerAsync(RegisterCustomerDTO dto);
-        Task<List<CustomerResponseDTO>> SearchCustomersAsync(string query, string filter);
+        Task<List<CustomerResponseDTO>> SearchCustomersAsync(string query);
         Task<CustomerHistoryResponseDTO?> GetCustomerHistoryAsync(int userId);
     }
 }

@@ -45,15 +45,12 @@ namespace VehicleAPI.Controllers
 
         [HttpGet("search")]
         public async Task<IActionResult> Search(
-            [FromQuery] string query = "",
-            [FromQuery] string filter = "all")
+            [FromQuery] string query = "")
         {
             try
             {
                 var results =
-                    await _customerService.SearchCustomersAsync(
-                        query,
-                        filter);
+                    await _customerService.SearchCustomersAsync(query);
 
                 return Ok(new
                 {

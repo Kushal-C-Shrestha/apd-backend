@@ -23,6 +23,10 @@ namespace VehicleAPI.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public bool IsDeleted { get; set; } = false;
+
+        public string? ImageUrl { get; set; }
+
         public User User { get; set; }
 
     }

@@ -36,16 +36,11 @@ namespace VehicleAPI.Services.Implementations
             if (await _db.Users.AnyAsync(u => u.Phone == dto.Phone))
                 throw new Exception("A customer with this phone number already exists.");
 
-            if (await _db.Vehicles.AnyAsync(v => v.VehicleNumber == dto.VehicleNumber))
-                throw new Exception("This vehicle number is already registered.");
-
-            string customerId = await GenerateUniqueCustomerIdAsync();
             string rawPassword = GeneratePassword();
             string passwordHash = HashPassword(rawPassword);
 
             var user = new User
             {
-                CustomerId = customerId,
                 FullName = dto.FullName,
                 Email = dto.Email,
                 Phone = dto.Phone,
@@ -58,31 +53,17 @@ namespace VehicleAPI.Services.Implementations
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            var vehicle = new Vehicle
-            {
-                VehicleNumber = dto.VehicleNumber,
-                Brand = dto.Brand,
-                Model = dto.Model,
-                Year = dto.Year ?? 0,
-                UserId = user.UserId,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.Vehicles.Add(vehicle);
-            await _db.SaveChangesAsync();
-
             await SendWelcomeEmailAsync(
                 user.Email,
                 user.FullName,
-                customerId,
+                user.UserId.ToString(),
                 rawPassword);
 
-            return MapToDTO(user, vehicle);
+            return MapToDTO(user, null);
         }
 
         public async Task<List<CustomerResponseDTO>> SearchCustomersAsync(
-            string query,
-            string filter)
+            string query)
         {
             var usersQuery = _db.Users
                 .Include(u => u.Vehicles)
@@ -92,28 +73,13 @@ namespace VehicleAPI.Services.Implementations
             {
                 string q = query.Trim().ToLower();
 
-                usersQuery = filter switch
-                {
-                    "name" => usersQuery.Where(u =>
-                        u.FullName.ToLower().Contains(q)),
-
-                    "phone" => usersQuery.Where(u =>
-                        u.Phone.ToLower().Contains(q)),
-
-                    "id" => usersQuery.Where(u =>
-                        u.CustomerId.ToLower().Contains(q)),
-
-                    "vehicle" => usersQuery.Where(u =>
-                        u.Vehicles.Any(v =>
-                            v.VehicleNumber.ToLower().Contains(q))),
-
-                    _ => usersQuery.Where(u =>
-                        u.FullName.ToLower().Contains(q) ||
-                        u.Phone.ToLower().Contains(q) ||
-                        u.CustomerId.ToLower().Contains(q) ||
-                        u.Vehicles.Any(v =>
-                            v.VehicleNumber.ToLower().Contains(q)))
-                };
+                usersQuery = usersQuery.Where(u =>
+                    u.FullName.ToLower().Contains(q) ||
+                    u.Phone.ToLower().Contains(q) ||
+                    u.Email.ToLower().Contains(q) ||
+                    u.UserId.ToString().Contains(q) ||
+                    u.Vehicles.Any(v =>
+                        v.VehicleNumber.ToLower().Contains(q)));
             }
 
             var users = await usersQuery.ToListAsync();
@@ -166,19 +132,7 @@ namespace VehicleAPI.Services.Implementations
             };
         }
 
-        private async Task<string> GenerateUniqueCustomerIdAsync()
-        {
-            string id;
-            var rng = new Random();
 
-            do
-            {
-                id = "CUS-" + rng.Next(1000, 9999);
-            }
-            while (await _db.Users.AnyAsync(u => u.CustomerId == id));
-
-            return id;
-        }
 
         private static string GeneratePassword()
         {
@@ -294,7 +248,7 @@ namespace VehicleAPI.Services.Implementations
             return new CustomerResponseDTO
             {
                 UserId = user.UserId,
-                CustomerId = user.CustomerId,
+
                 FullName = user.FullName,
                 Email = user.Email,
                 Phone = user.Phone,
