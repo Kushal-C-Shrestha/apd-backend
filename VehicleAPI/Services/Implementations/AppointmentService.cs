@@ -46,6 +46,28 @@ namespace VehicleAPI.Services.Implementations
             await dbContext.Appointments.AddAsync(appointment);
             await dbContext.SaveChangesAsync();
 
+            // Add notification for the customer
+            dbContext.Notifications.Add(new Notification
+            {
+                UserId = dto.UserId,
+                Message = $"Your appointment for {appointment.ServiceType} has been scheduled for {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Add notification for admin
+            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+            if (adminUser != null)
+            {
+                var customerName = (await dbContext.Users.FindAsync(dto.UserId))?.FullName ?? "A customer";
+                dbContext.Notifications.Add(new Notification
+                {
+                    UserId = adminUser.UserId,
+                    Message = $"New appointment booking: {customerName} for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await dbContext.SaveChangesAsync();
+
             await dbContext.Entry(appointment).Reference(a => a.User).LoadAsync();
             await dbContext.Entry(appointment).Reference(a => a.Vehicle).LoadAsync();
 
@@ -108,6 +130,29 @@ namespace VehicleAPI.Services.Implementations
             }
 
             await dbContext.SaveChangesAsync();
+
+            // Add notification for the customer
+            dbContext.Notifications.Add(new Notification
+            {
+                UserId = appointment.UserId,
+                Message = $"Your appointment for {appointment.ServiceType} has been rescheduled to {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Add notification for admin
+            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+            if (adminUser != null)
+            {
+                var customerName = appointment.User?.FullName ?? "A customer";
+                dbContext.Notifications.Add(new Notification
+                {
+                    UserId = adminUser.UserId,
+                    Message = $"Appointment rescheduled: {customerName}'s appointment is now scheduled for {appointment.AppointmentDateTime.ToLocalTime():g}.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await dbContext.SaveChangesAsync();
+
             return new ApiResponse<AppointmentResponseDto>(true, "Appointment rescheduled successfully.", ToDto(appointment), null);
         }
 
@@ -129,7 +174,77 @@ namespace VehicleAPI.Services.Implementations
 
             appointment.Status = "Cancelled";
             await dbContext.SaveChangesAsync();
+
+            // Add notification for customer
+            dbContext.Notifications.Add(new Notification
+            {
+                UserId = appointment.UserId,
+                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} has been cancelled.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Add notification for admin
+            var adminUser2 = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+            if (adminUser2 != null)
+            {
+                var customerName = appointment.User?.FullName ?? "A customer";
+                dbContext.Notifications.Add(new Notification
+                {
+                    UserId = adminUser2.UserId,
+                    Message = $"Appointment cancelled: {customerName}'s appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} was cancelled.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await dbContext.SaveChangesAsync();
+
             return new ApiResponse<AppointmentResponseDto>(true, "Appointment cancelled successfully.", ToDto(appointment), null);
+        }
+
+        public async Task<ApiResponse<AppointmentResponseDto>> CompleteAppointmentAsync(int appointmentId)
+        {
+            var appointment = await dbContext.Appointments
+                .Include(a => a.User)
+                .Include(a => a.Vehicle)
+                .FirstOrDefaultAsync(a => a.AppointmentId == appointmentId);
+
+            if (appointment == null)
+                return new ApiResponse<AppointmentResponseDto>(false, "Appointment not found.", null, null);
+
+            if (appointment.Status == "Completed")
+                return new ApiResponse<AppointmentResponseDto>(false, "Appointment is already completed.", null, null);
+
+            if (appointment.Status == "Cancelled")
+                return new ApiResponse<AppointmentResponseDto>(false, "Cannot complete a cancelled appointment.", null, null);
+
+            if (appointment.AppointmentDateTime.Date > DateTime.UtcNow.Date)
+                return new ApiResponse<AppointmentResponseDto>(false, "Cannot mark appointment as completed if the appointment date is in the future.", null, null);
+
+            appointment.Status = "Completed";
+            await dbContext.SaveChangesAsync();
+
+            // Add notification for customer
+            dbContext.Notifications.Add(new Notification
+            {
+                UserId = appointment.UserId,
+                Message = $"Your appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime.ToLocalTime():g} has been marked as Completed.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Add notification for admin
+            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+            if (adminUser != null)
+            {
+                var customerName = appointment.User?.FullName ?? "A customer";
+                dbContext.Notifications.Add(new Notification
+                {
+                    UserId = adminUser.UserId,
+                    Message = $"Appointment completed: {customerName}'s appointment for {appointment.ServiceType} was marked as Completed.",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            await dbContext.SaveChangesAsync();
+
+            return new ApiResponse<AppointmentResponseDto>(true, "Appointment completed successfully.", ToDto(appointment), null);
         }
     }
 }

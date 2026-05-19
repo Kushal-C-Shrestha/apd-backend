@@ -77,5 +77,19 @@ namespace VehicleAPI.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        [HttpPut("{id:int}/complete")]
+        public async Task<IActionResult> Complete(int id)
+        {
+            try
+            {
+                var result = await appointmentService.CompleteAppointmentAsync(id);
+                return result.Success ? Ok(result) : BadRequest(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

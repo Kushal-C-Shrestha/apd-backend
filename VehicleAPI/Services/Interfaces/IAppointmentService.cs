@@ -11,5 +11,6 @@ namespace VehicleAPI.Services.Interfaces
         Task<ApiResponse<List<AppointmentResponseDto>>> GetAppointmentsByUserIdAsync(int userId);
         Task<ApiResponse<AppointmentResponseDto>> RescheduleAppointmentAsync(int appointmentId, RescheduleAppointmentDto dto);
         Task<ApiResponse<AppointmentResponseDto>> CancelAppointmentAsync(int appointmentId);
+        Task<ApiResponse<AppointmentResponseDto>> CompleteAppointmentAsync(int appointmentId);
     }
 }
