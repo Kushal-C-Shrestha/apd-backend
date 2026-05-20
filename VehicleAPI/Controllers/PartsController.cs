@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VehicleAPI.DTOs.Request;
 using VehicleAPI.Services.Interfaces;
@@ -79,8 +80,10 @@ namespace VehicleAPI.Controllers
 			return Ok(purchase);
 		}
 
+
 		[HttpPost("purchases")]
-		public async Task<IActionResult> CreatePurchase([FromBody] CreatePurchaseDTO dto)
+		[Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreatePurchase([FromBody] CreatePurchaseDTO dto)
 		{
 			if (!ModelState.IsValid) return BadRequest(ModelState);
 

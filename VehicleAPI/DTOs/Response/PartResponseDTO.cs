@@ -5,9 +5,11 @@ namespace VehicleAPI.DTOs.Response
         public int PartId { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+        public decimal CostPrice { get; set; }
         public decimal UnitPrice { get; set; }
         public int StockQuantity { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? ImageUrl { get; set; }
     }
 
     public class PurchaseItemResponseDTO
@@ -27,6 +29,7 @@ namespace VehicleAPI.DTOs.Response
         public string VendorName { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string PaymentStatus { get; set; }
         public List<PurchaseItemResponseDTO> Items { get; set; }
     }
 }

@@ -25,6 +25,7 @@ namespace VehicleAPI.Services.Implementations
                 {
                     VendorId = v.VendorId,
                     Name = v.Name,
+                    ContactPerson = v.ContactPerson,
                     Phone = v.Phone,
                     Email = v.Email,
                     Address = v.Address,
@@ -38,6 +39,8 @@ namespace VehicleAPI.Services.Implementations
         {
             var vendor = await _context.Vendors
                 .Include(v => v.Purchases)
+                    .ThenInclude(p => p.PurchaseItems)
+                        .ThenInclude(pi => pi.Part)
                 .FirstOrDefaultAsync(v => v.VendorId == vendorId);
 
             if (vendor == null) return null;
@@ -46,11 +49,29 @@ namespace VehicleAPI.Services.Implementations
             {
                 VendorId = vendor.VendorId,
                 Name = vendor.Name,
+                ContactPerson = vendor.ContactPerson,
                 Phone = vendor.Phone,
                 Email = vendor.Email,
                 Address = vendor.Address,
                 CreatedAt = vendor.CreatedAt,
-                TotalPurchases = vendor.Purchases?.Count ?? 0
+                TotalPurchases = vendor.Purchases?.Count ?? 0,
+                PurchaseHistory = vendor.Purchases?.Select(p => new PurchaseResponseDTO
+                {
+                    PurchaseId = p.PurchaseId,
+                    VendorId = p.VendorId,
+                    VendorName = vendor.Name,
+                    TotalAmount = p.TotalAmount,
+                    CreatedAt = p.CreatedAt,
+                    Items = p.PurchaseItems?.Select(pi => new PurchaseItemResponseDTO
+                    {
+                        PurchaseItemId = pi.PurchaseItemId,
+                        PartId = pi.PartId,
+                        PartName = pi.Part?.Name ?? "Unknown Part",
+                        Quantity = pi.Quantity,
+                        UnitCost = pi.UnitCost,
+                        Subtotal = pi.Subtotal
+                    }).ToList() ?? new()
+                }).OrderByDescending(p => p.CreatedAt).ToList() ?? new()
             };
         }
 
@@ -63,6 +84,7 @@ namespace VehicleAPI.Services.Implementations
             var vendor = new Vendor
             {
                 Name = dto.Name,
+                ContactPerson = dto.ContactPerson,
                 Phone = dto.Phone,
                 Email = dto.Email,
                 Address = dto.Address
@@ -75,6 +97,7 @@ namespace VehicleAPI.Services.Implementations
             {
                 VendorId = vendor.VendorId,
                 Name = vendor.Name,
+                ContactPerson = vendor.ContactPerson,
                 Phone = vendor.Phone,
                 Email = vendor.Email,
                 Address = vendor.Address,
@@ -97,6 +120,7 @@ namespace VehicleAPI.Services.Implementations
                 throw new InvalidOperationException("Another vendor with this phone number already exists.");
 
             vendor.Name = dto.Name;
+            vendor.ContactPerson = dto.ContactPerson;
             vendor.Phone = dto.Phone;
             vendor.Email = dto.Email;
             vendor.Address = dto.Address;
@@ -107,6 +131,7 @@ namespace VehicleAPI.Services.Implementations
             {
                 VendorId = vendor.VendorId,
                 Name = vendor.Name,
+                ContactPerson = vendor.ContactPerson,
                 Phone = vendor.Phone,
                 Email = vendor.Email,
                 Address = vendor.Address,

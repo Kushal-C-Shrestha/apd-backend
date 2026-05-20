@@ -10,12 +10,18 @@ namespace VehicleAPI.DTOs.Request
         public string Description { get; set; }
 
         [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Cost price must be greater than 0.")]
+        public decimal CostPrice { get; set; }
+
+        [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Unit price must be greater than 0.")]
         public decimal UnitPrice { get; set; }
 
         [Required]
         [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative.")]
         public int StockQuantity { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 
     public class UpdatePartDTO
@@ -26,18 +32,26 @@ namespace VehicleAPI.DTOs.Request
         public string Description { get; set; }
 
         [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Cost price must be greater than 0.")]
+        public decimal CostPrice { get; set; }
+
+        [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Unit price must be greater than 0.")]
         public decimal UnitPrice { get; set; }
 
         [Required]
         [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative.")]
         public int StockQuantity { get; set; }
+
+        public string? ImageUrl { get; set; }
     }
 
     public class PurchasePartItemDTO
     {
-        [Required]
-        public int PartId { get; set; }
+        public int? PartId { get; set; }
+
+        public string? PartName { get; set; }
+        public decimal? UnitPrice { get; set; }
 
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1.")]
@@ -52,6 +66,8 @@ namespace VehicleAPI.DTOs.Request
     {
         [Required]
         public int VendorId { get; set; }
+
+        public string PaymentStatus { get; set; } = "Paid";
 
         [Required, MinLength(1, ErrorMessage = "At least one item is required.")]
         public List<PurchasePartItemDTO> Items { get; set; }

@@ -13,12 +13,17 @@ namespace VehicleAPI.Models
         public string Description { get; set; }
 
         [Required]
+        public decimal CostPrice { get; set; }
+
+        [Required]
         public decimal UnitPrice { get; set; }
 
         [Required]
         public int StockQuantity { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? ImageUrl { get; set; }
+        public bool IsDeleted { get; set; } = false;
         public ICollection<PurchaseItem> PurchaseItems { get; set; } = new List<PurchaseItem>();
         public ICollection<SaleItem> SaleItems { get; set; } = new List<SaleItem>();
 
