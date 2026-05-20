@@ -21,7 +21,6 @@ namespace VehicleAPI.Services.Implementations
             _config = config;
         }
 
-
         public async Task<List<PartResponseDTO>> GetAllPartsAsync()
         {
             return await _context.Parts
@@ -98,12 +97,13 @@ namespace VehicleAPI.Services.Implementations
 
             foreach (var item in dto.Items)
             {
-                Part part;
-                if (item.PartId.HasValue && item.PartId.Value > 0)
-                {
-                    part = await _context.Parts.FindAsync(item.PartId.Value);
-                    if (part == null || part.IsDeleted)
-                        throw new KeyNotFoundException($"Part with ID {item.PartId} not found.");
+                if (item.PartId <= 0)
+                    throw new Exception("Invalid PartId");
+
+                var part = await _context.Parts.FindAsync(item.PartId);
+
+                if (part == null || part.IsDeleted)
+                    throw new KeyNotFoundException($"Part with ID {item.PartId} not found.");
 
                 var subtotal = item.Quantity * item.UnitCost;
                 total += subtotal;
@@ -124,34 +124,35 @@ namespace VehicleAPI.Services.Implementations
             _context.Purchases.Add(purchase);
             await _context.SaveChangesAsync();
 
-            // Add notification for admin
             var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
             if (adminUser != null)
             {
                 var vendorName = (await _context.Vendors.FindAsync(purchase.VendorId))?.Name ?? "supplier";
+
                 _context.Notifications.Add(new Notification
                 {
                     UserId = adminUser.UserId,
                     Message = $"Procurement invoice logged: Recorded Rs. {purchase.TotalAmount:N0} stock purchase from '{vendorName}'.",
                     CreatedAt = DateTime.UtcNow
                 });
+
                 await _context.SaveChangesAsync();
             }
 
-            // Fetch fully loaded purchase including vendor & part items to send an email notification to vendor
             var savedPurchase = await _context.Purchases
                 .Include(p => p.Vendor)
                 .Include(p => p.PurchaseItems)
                     .ThenInclude(pi => pi.Part)
                 .FirstOrDefaultAsync(p => p.PurchaseId == purchase.PurchaseId);
 
-            if (savedPurchase != null && savedPurchase.Vendor != null)
+            if (savedPurchase?.Vendor != null)
             {
                 _ = SendPurchaseEmailToVendorAsync(savedPurchase, savedPurchase.Vendor);
             }
 
             return await BuildPurchaseResponseAsync(purchase.PurchaseId);
         }
+
 
         public async Task<List<PurchaseResponseDTO>> GetAllPurchasesAsync()
         {
@@ -225,6 +226,12 @@ namespace VehicleAPI.Services.Implementations
             ImageUrl = part.ImageUrl
         };
 
+        private async Task<PurchaseResponseDTO> BuildPurchaseResponseAsync(int purchaseId)
+        {
+            return (await GetPurchaseByIdAsync(purchaseId))!;
+        }
+
+
         private async Task SendPurchaseEmailToVendorAsync(Purchase purchase, Vendor vendor)
         {
             if (vendor == null || string.IsNullOrEmpty(vendor.Email))
@@ -249,65 +256,18 @@ namespace VehicleAPI.Services.Implementations
 
                 var itemsHtml = string.Join("", purchase.PurchaseItems.Select(item => $@"
                     <tr>
-                        <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: left;'>{item.Part?.Name ?? "Unknown"}</td>
-                        <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: center;'>{item.Quantity}</td>
-                        <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>Rs. {item.UnitCost:N2}</td>
-                        <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>Rs. {item.Subtotal:N2}</td>
+                        <td>{item.Part?.Name ?? "Unknown"}</td>
+                        <td>{item.Quantity}</td>
+                        <td>Rs. {item.UnitCost:N2}</td>
+                        <td>Rs. {item.Subtotal:N2}</td>
                     </tr>"));
 
                 var mail = new MailMessage
                 {
                     From = new MailAddress(smtpUser, fromName),
-                    Subject = $"New Purchase Order #{purchase.PurchaseId} - {fromName}",
+                    Subject = $"New Purchase Order #{purchase.PurchaseId}",
                     IsBodyHtml = true,
-                    Body = $@"
-                        <div style='font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e5e7eb;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);'>
-                            <div style='background-color:#2563eb;color:white;padding:20px;text-align:center;border-radius:6px 6px 0 0;'>
-                                <h2 style='margin:0;font-size:22px;'>Purchase Order #{purchase.PurchaseId}</h2>
-                                <p style='margin:5px 0 0 0;font-size:14px;opacity:0.9;'>From: {fromName}</p>
-                            </div>
-                            
-                            <div style='padding:20px 0;'>
-                                <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
-                                    <tr>
-                                        <td style='vertical-align:top; width:50%;'>
-                                            <p style='margin:0;font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;'>Vendor Details</p>
-                                            <p style='margin:5px 0;font-size:14px;font-weight:bold;color:#111827;'>{vendor.Name}</p>
-                                            <p style='margin:3px 0;font-size:13px;color:#4b5563;'>Contact: {vendor.ContactPerson}</p>
-                                            <p style='margin:3px 0;font-size:13px;color:#4b5563;'>Phone: {vendor.Phone}</p>
-                                        </td>
-                                        <td style='vertical-align:top; width:50%; text-align:right;'>
-                                            <p style='margin:0;font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:bold;'>Order Information</p>
-                                            <p style='margin:5px 0;font-size:13px;color:#4b5563;'><strong>Date:</strong> {purchase.CreatedAt:MMM dd, yyyy}</p>
-                                            <p style='margin:3px 0;font-size:13px;color:#4b5563;'><strong>Payment Status:</strong> <span style='background-color:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;'>{purchase.PaymentStatus}</span></p>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <table style='width: 100%; border-collapse: collapse; margin-top: 20px;'>
-                                    <thead>
-                                        <tr style='background-color: #f3f4f6; text-align: left;'>
-                                            <th style='padding: 10px; border-bottom: 2px solid #e5e7eb; font-size:12px; color:#4b5563; font-weight:bold;'>Item / Part Name</th>
-                                            <th style='padding: 10px; border-bottom: 2px solid #e5e7eb; font-size:12px; color:#4b5563; font-weight:bold; text-align:center;'>Qty</th>
-                                            <th style='padding: 10px; border-bottom: 2px solid #e5e7eb; font-size:12px; color:#4b5563; font-weight:bold; text-align:right;'>Unit Cost</th>
-                                            <th style='padding: 10px; border-bottom: 2px solid #e5e7eb; font-size:12px; color:#4b5563; font-weight:bold; text-align:right;'>Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {itemsHtml}
-                                    </tbody>
-                                </table>
-
-                                <div style='margin-top: 20px; text-align: right; border-top:2px solid #e5e7eb; padding-top:15px;'>
-                                    <p style='margin:0;font-size:14px;color:#4b5563;'><strong>Subtotal:</strong> Rs. {purchase.TotalAmount:N2}</p>
-                                    <h3 style='margin:5px 0 0 0;font-size:18px;color:#111827;'><strong>Total Amount:</strong> Rs. {purchase.TotalAmount:N2}</h3>
-                                </div>
-                            </div>
-                            
-                            <div style='background-color:#f9fafb;padding:15px;text-align:center;border-radius:6px;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;'>
-                                This is an automated email from {fromName}. Please review the order. For any queries, contact our admin panel.
-                            </div>
-                        </div>"
+                    Body = $"<html><body>{itemsHtml}</body></html>"
                 };
 
                 mail.To.Add(vendor.Email);
@@ -315,13 +275,8 @@ namespace VehicleAPI.Services.Implementations
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Purchase order email sending to vendor failed: {ex.Message}");
+                Console.WriteLine($"Email failed: {ex.Message}");
             }
-        }
-
-        private async Task<PurchaseResponseDTO> BuildPurchaseResponseAsync(int purchaseId)
-        {
-            return (await GetPurchaseByIdAsync(purchaseId))!;
         }
     }
 }
