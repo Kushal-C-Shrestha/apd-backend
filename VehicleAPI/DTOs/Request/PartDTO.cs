@@ -48,10 +48,8 @@ namespace VehicleAPI.DTOs.Request
 
     public class PurchasePartItemDTO
     {
-        public int? PartId { get; set; }
-
-        public string? PartName { get; set; }
-        public decimal? UnitPrice { get; set; }
+        [Required]
+        public int PartId { get; set; }
 
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1.")]

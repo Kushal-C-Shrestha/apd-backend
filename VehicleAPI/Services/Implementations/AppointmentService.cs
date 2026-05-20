@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using VehicleAPI.Data;
 using VehicleAPI.DTOs;
 using VehicleAPI.DTOs.Request;
@@ -8,8 +9,13 @@ using VehicleAPI.Services.Interfaces;
 
 namespace VehicleAPI.Services.Implementations
 {
-    public class AppointmentService(AppDbContext dbContext) : IAppointmentService
+    public class AppointmentService(AppDbContext dbContext, IHttpContextAccessor httpContextAccessor) : IAppointmentService
     {
+        private int? GetCurrentUserId()
+        {
+            var claim = httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+            return claim != null && int.TryParse(claim.Value, out var id) ? id : null;
+        }
         private static AppointmentResponseDto ToDto(Appointment a) => new()
         {
             AppointmentId = a.AppointmentId,
@@ -61,7 +67,7 @@ namespace VehicleAPI.Services.Implementations
             await dbContext.Appointments.AddAsync(appointment);
             await dbContext.SaveChangesAsync();
 
-            // Add notification for the customer
+            // Notify customer
             dbContext.Notifications.Add(new Notification
             {
                 UserId = dto.UserId,
@@ -69,14 +75,13 @@ namespace VehicleAPI.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Add notification for admin
-            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
-            if (adminUser != null)
+            var callerId = GetCurrentUserId();
+            if (callerId.HasValue && callerId.Value != dto.UserId)
             {
                 var customerName = (await dbContext.Users.FindAsync(dto.UserId))?.FullName ?? "A customer";
                 dbContext.Notifications.Add(new Notification
                 {
-                    UserId = adminUser.UserId,
+                    UserId = callerId.Value,
                     Message = $"New appointment booking: {customerName} for {appointment.ServiceType} on {appointment.AppointmentDateTime:g}.",
                     CreatedAt = DateTime.UtcNow
                 });
@@ -151,7 +156,7 @@ namespace VehicleAPI.Services.Implementations
 
             await dbContext.SaveChangesAsync();
 
-            // Add notification for the customer
+            // Notify customer
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
@@ -159,14 +164,13 @@ namespace VehicleAPI.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Add notification for admin
-            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
-            if (adminUser != null)
+            var callerId = GetCurrentUserId();
+            if (callerId.HasValue && callerId.Value != appointment.UserId)
             {
                 var customerName = appointment.User?.FullName ?? "A customer";
                 dbContext.Notifications.Add(new Notification
                 {
-                    UserId = adminUser.UserId,
+                    UserId = callerId.Value,
                     Message = $"Appointment rescheduled: {customerName}'s appointment is now scheduled for {appointment.AppointmentDateTime:g}.",
                     CreatedAt = DateTime.UtcNow
                 });
@@ -195,7 +199,7 @@ namespace VehicleAPI.Services.Implementations
             appointment.Status = "Cancelled";
             await dbContext.SaveChangesAsync();
 
-            // Add notification for customer
+            // Notify customer
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
@@ -203,14 +207,13 @@ namespace VehicleAPI.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Add notification for admin
-            var adminUser2 = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
-            if (adminUser2 != null)
+            var callerId = GetCurrentUserId();
+            if (callerId.HasValue && callerId.Value != appointment.UserId)
             {
                 var customerName = appointment.User?.FullName ?? "A customer";
                 dbContext.Notifications.Add(new Notification
                 {
-                    UserId = adminUser2.UserId,
+                    UserId = callerId.Value,
                     Message = $"Appointment cancelled: {customerName}'s appointment for {appointment.ServiceType} on {appointment.AppointmentDateTime:g} was cancelled.",
                     CreatedAt = DateTime.UtcNow
                 });
@@ -242,7 +245,7 @@ namespace VehicleAPI.Services.Implementations
             appointment.Status = "Completed";
             await dbContext.SaveChangesAsync();
 
-            // Add notification for customer
+            // Notify customer
             dbContext.Notifications.Add(new Notification
             {
                 UserId = appointment.UserId,
@@ -250,14 +253,13 @@ namespace VehicleAPI.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Add notification for admin
-            var adminUser = await dbContext.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
-            if (adminUser != null)
+            var callerId = GetCurrentUserId();
+            if (callerId.HasValue && callerId.Value != appointment.UserId)
             {
                 var customerName = appointment.User?.FullName ?? "A customer";
                 dbContext.Notifications.Add(new Notification
                 {
-                    UserId = adminUser.UserId,
+                    UserId = callerId.Value,
                     Message = $"Appointment completed: {customerName}'s appointment for {appointment.ServiceType} was marked as Completed.",
                     CreatedAt = DateTime.UtcNow
                 });

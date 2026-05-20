@@ -1,4 +1,4 @@
-﻿namespace VehicleAPI.DTOs.Response
+namespace VehicleAPI.DTOs.Response
 {
     public class CustomerProfileResponseDTO
     {

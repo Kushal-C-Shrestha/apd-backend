@@ -30,7 +30,7 @@ namespace VehicleAPI.Services.Implementations
                 throw new KeyNotFoundException($"User with ID {dto.UserId} not found.");
 
             var part = await _db.Parts.FindAsync(dto.PartId);
-            if (part == null)
+            if (part == null || part.IsDeleted)
                 throw new KeyNotFoundException($"Part with ID {dto.PartId} not found.");
 
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -110,9 +110,26 @@ namespace VehicleAPI.Services.Implementations
 
                 request.Status = status;
 
-                if (status == "Available" && request.User != null)
+                string? message = null;
+                if (status == "Available")
                 {
-                    var message = $"Your request for '{request.Part?.Name}' is now available. Please order it soon!";
+                    message = $"Your request for '{request.Part?.Name}' is now available. Please order it soon!";
+                }
+                else if (status == "Approved")
+                {
+                    message = $"Your request for '{request.Part?.Name}' has been approved and is available. Please order it soon!";
+                }
+                else if (status == "Fulfilled")
+                {
+                    message = $"Your request for '{request.Part?.Name}' has been fulfilled.";
+                }
+                else if (status == "Rejected")
+                {
+                    message = $"Your request for '{request.Part?.Name}' has been rejected.";
+                }
+
+                if (message != null && request.User != null)
+                {
                     _db.Notifications.Add(new Notification
                     {
                         UserId = request.UserId,
@@ -122,7 +139,7 @@ namespace VehicleAPI.Services.Implementations
 
                     if (!string.IsNullOrEmpty(request.User.Email))
                     {
-                        _ = SendPartAvailableEmailAsync(request.User.Email, request.User.FullName, request.Part?.Name ?? "Unknown");
+                        _ = SendPartRequestStatusEmailAsync(request.User.Email, request.User.FullName, request.Part?.Name ?? "Unknown", status);
                     }
                 }
 
@@ -138,7 +155,7 @@ namespace VehicleAPI.Services.Implementations
             }
         }
 
-        private async Task SendPartAvailableEmailAsync(string toEmail, string toName, string partName)
+        private async Task SendPartRequestStatusEmailAsync(string toEmail, string toName, string partName, string status)
         {
             try
             {
@@ -161,20 +178,58 @@ namespace VehicleAPI.Services.Implementations
                     EnableSsl = true
                 };
 
-                var mail = new MailMessage
+                string subject = "";
+                string body = "";
+
+                if (status == "Available" || status == "Approved")
                 {
-                    From = new MailAddress(user, fromName),
-                    Subject = "Part Available - Order Now!",
-                    IsBodyHtml = true,
-                    Body = $@"
+                    subject = status == "Available" ? "Part Available - Order Now!" : "Part Request Approved!";
+                    body = $@"
                         <div style='font-family: Arial, sans-serif; padding: 20px;'>
                             <h2>Good News, {toName}!</h2>
-                            <p>The part you requested, <strong>{partName}</strong>, is now available in our stock.</p>
+                            <p>The part you requested, <strong>{partName}</strong>, is now {(status == "Available" ? "available" : "approved and available")} in our stock.</p>
                             <p>Please visit the portal to complete your order soon before it runs out!</p>
                             <br>
                             <p>Best regards,</p>
                             <p>{fromName}</p>
-                        </div>"
+                        </div>";
+                }
+                else if (status == "Fulfilled")
+                {
+                    subject = "Part Request Fulfilled!";
+                    body = $@"
+                        <div style='font-family: Arial, sans-serif; padding: 20px;'>
+                            <h2>Hello, {toName}!</h2>
+                            <p>The part you requested, <strong>{partName}</strong>, has been marked as fulfilled.</p>
+                            <br>
+                            <p>Best regards,</p>
+                            <p>{fromName}</p>
+                        </div>";
+                }
+                else if (status == "Rejected")
+                {
+                    subject = "Part Request Rejected";
+                    body = $@"
+                        <div style='font-family: Arial, sans-serif; padding: 20px;'>
+                            <h2>Hello, {toName}!</h2>
+                            <p>We regret to inform you that your request for the part, <strong>{partName}</strong>, has been rejected.</p>
+                            <p>If you have any questions or require further assistance, please contact our support team.</p>
+                            <br>
+                            <p>Best regards,</p>
+                            <p>{fromName}</p>
+                        </div>";
+                }
+                else
+                {
+                    return;
+                }
+
+                var mail = new MailMessage
+                {
+                    From = new MailAddress(user, fromName),
+                    Subject = subject,
+                    IsBodyHtml = true,
+                    Body = body
                 };
 
                 mail.To.Add(toEmail);
@@ -182,7 +237,7 @@ namespace VehicleAPI.Services.Implementations
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Part available email sending failed: {ex.Message}");
+                Console.WriteLine($"Part request status {status} email sending failed: {ex.Message}");
             }
         }
 

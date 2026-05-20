@@ -53,6 +53,24 @@ namespace VehicleAPI.Services.Implementations
                 await _db.Entry(review).Reference(r => r.User).LoadAsync();
                 await _db.Entry(review).Reference(r => r.Appointment).LoadAsync();
 
+                // Add notification for admin
+                var adminUser = await _db.Users.FirstOrDefaultAsync(u => u.RoleId == 1);
+                if (adminUser != null)
+                {
+                    var customerName = review.User?.FullName ?? "A customer";
+                    var previewMsg = string.IsNullOrWhiteSpace(review.Comment) 
+                        ? $"left a {review.Rating}-star rating." 
+                        : $"wrote: \"{(review.Comment.Length > 60 ? review.Comment[..60] + "..." : review.Comment)}\"";
+
+                    _db.Notifications.Add(new Notification
+                    {
+                        UserId = adminUser.UserId,
+                        Message = $"New {review.Rating}-star review from {customerName} — {previewMsg}",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _db.SaveChangesAsync();
+                }
+
                 await transaction.CommitAsync();
 
                 return MapToDTO(review);

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using VehicleAPI.Models;
 
 namespace VehicleAPI.Data
@@ -51,9 +51,7 @@ namespace VehicleAPI.Data
                 .HasIndex(u => u.Phone)
                 .IsUnique();
 
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.CustomerId)
-                .IsUnique();
+
 
             modelBuilder.Entity<Vehicle>()
                 .HasOne(v => v.User)
@@ -101,6 +99,11 @@ namespace VehicleAPI.Data
                 .HasOne(r => r.User)
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(r => r.UserId);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Appointment)
+                .WithMany()
+                .HasForeignKey(r => r.AppointmentId);
 
 
             modelBuilder.Entity<Notification>()

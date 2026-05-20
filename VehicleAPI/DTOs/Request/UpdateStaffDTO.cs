@@ -1,4 +1,4 @@
-﻿namespace VehicleAPI.DTOs.Request
+namespace VehicleAPI.DTOs.Request
 {
     public class UpdateStaffDTO
     {

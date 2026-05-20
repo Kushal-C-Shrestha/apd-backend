@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace VehicleAPI.Models
 {
@@ -13,6 +13,9 @@ namespace VehicleAPI.Models
         public decimal TotalAmount { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Required]
+        public string PaymentStatus { get; set; } = "Paid";
 
         public Vendor Vendor { get; set; }
 

@@ -35,13 +35,18 @@ namespace VehicleAPI.Services.Implementations
                     u.Phone == dto.Identifier.Trim());
 
             if (user == null)
-                throw new Exception("No account found with this email or phone number.");
+                throw new Exception("identifier|No account found with this email or phone number.");
 
             var hashedInput = HashPassword(dto.Password);
             if (user.PasswordHash != hashedInput)
-                throw new Exception("Incorrect password. Please try again.");
+                throw new Exception("password|Incorrect password. Please try again.");
 
             var token = GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken();
+            
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _db.SaveChangesAsync();
 
             return new LoginResponseDTO
             {
@@ -50,25 +55,23 @@ namespace VehicleAPI.Services.Implementations
                 Email = user.Email,
                 Phone = user.Phone,
                 Role = user.Role.Name,
-                CustomerId = user.CustomerId ?? string.Empty,
-                Token = token
+                Token = token,
+                RefreshToken = refreshToken
             };
         }
 
         public async Task<LoginResponseDTO> CustomerSelfRegisterAsync(CustomerSelfRegisterDTO dto)
         {
             if (await _db.Users.AnyAsync(u => u.Email == dto.Email.Trim()))
-                throw new Exception("An account with this email already exists.");
+                throw new Exception("email|An account with this email already exists.");
 
             if (await _db.Users.AnyAsync(u => u.Phone == dto.Phone.Trim()))
-                throw new Exception("An account with this phone number already exists.");
+                throw new Exception("phone|An account with this phone number already exists.");
 
-            string customerId = await GenerateUniqueCustomerIdAsync();
             string passwordHash = HashPassword(dto.Password);
 
             var user = new User
             {
-                CustomerId = customerId,
                 FullName = dto.FullName.Trim(),
                 Email = dto.Email.Trim(),
                 Phone = dto.Phone.Trim(),
@@ -84,6 +87,11 @@ namespace VehicleAPI.Services.Implementations
             await _db.Entry(user).Reference(u => u.Role).LoadAsync();
 
             var token = GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _db.SaveChangesAsync();
 
             return new LoginResponseDTO
             {
@@ -92,8 +100,8 @@ namespace VehicleAPI.Services.Implementations
                 Email = user.Email,
                 Phone = user.Phone,
                 Role = user.Role.Name,
-                CustomerId = user.CustomerId,
-                Token = token
+                Token = token,
+                RefreshToken = refreshToken
             };
         }
 
@@ -176,6 +184,7 @@ namespace VehicleAPI.Services.Implementations
 
                 var client = new SmtpClient(smtpHost, smtpPort)
                 {
+                    UseDefaultCredentials = false,
                     Credentials = new NetworkCredential(smtpUser, smtpPass),
                     EnableSsl = true
                 };
@@ -183,7 +192,7 @@ namespace VehicleAPI.Services.Implementations
                 var mail = new MailMessage
                 {
                     From = new MailAddress(smtpUser!, fromName),
-                    Subject = "Password Reset OTP – Vehicle Service Center",
+                    Subject = "Password Reset OTP â€“ Vehicle Service Center",
                     IsBodyHtml = true,
                     Body = $@"
                         <div style='font-family:Arial,sans-serif;max-width:500px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;'>
@@ -210,17 +219,7 @@ namespace VehicleAPI.Services.Implementations
             }
         }
 
-        private async Task<string> GenerateUniqueCustomerIdAsync()
-        {
-            string id;
-            var rng = new Random();
-            do
-            {
-                id = "CUS-" + rng.Next(1000, 9999);
-            }
-            while (await _db.Users.AnyAsync(u => u.CustomerId == id));
-            return id;
-        }
+
 
         private string GenerateJwtToken(User user)
         {
@@ -235,14 +234,14 @@ namespace VehicleAPI.Services.Implementations
                 new Claim(ClaimTypes.Name, user.FullName),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role.Name),
-                new Claim("CustomerId", user.CustomerId ?? string.Empty)
+                new Claim("CustomerId", user.UserId.ToString())
             };
 
             var token = new JwtSecurityToken(
                 issuer: jwtIssuer,
                 audience: jwtIssuer,
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
             );
 
@@ -255,6 +254,38 @@ namespace VehicleAPI.Services.Implementations
             var bytes = System.Text.Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
+        }
+
+        private static string GenerateRefreshToken()
+        {
+            return Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
+        }
+
+        public async Task UpdateUserRefreshTokenAsync(int userId, string refreshToken, DateTime expiryTime)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = expiryTime;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        public async Task<(string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken)
+        {
+            var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+                throw new Exception("Invalid or expired refresh token.");
+
+            var newAccessToken = GenerateJwtToken(user);
+            var newRefreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _db.SaveChangesAsync();
+
+            return (newAccessToken, newRefreshToken);
         }
     }
 }

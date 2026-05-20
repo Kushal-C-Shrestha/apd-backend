@@ -105,45 +105,6 @@ namespace VehicleAPI.Services.Implementations
                     if (part == null || part.IsDeleted)
                         throw new KeyNotFoundException($"Part with ID {item.PartId} not found.");
 
-                    // Calculate Weighted Average Cost (WAC) for existing part
-                    int oldQty = Math.Max(0, part.StockQuantity);
-                    decimal oldCost = part.CostPrice;
-                    decimal totalOldValue = oldQty * oldCost;
-                    decimal totalNewValue = item.Quantity * item.UnitCost;
-                    int newQty = oldQty + item.Quantity;
-
-                    decimal newCostPrice = (totalOldValue + totalNewValue) / newQty;
-
-                    if (part.CostPrice > 0)
-                    {
-                        decimal markupRatio = part.UnitPrice / part.CostPrice;
-                        part.UnitPrice = Math.Round(newCostPrice * markupRatio, 2);
-                    }
-                    else
-                    {
-                        part.UnitPrice = item.UnitPrice ?? Math.Round(newCostPrice * 1.2m, 2);
-                    }
-
-                    part.CostPrice = newCostPrice;
-                }
-                else
-                {
-                    if (string.IsNullOrWhiteSpace(item.PartName))
-                        throw new ArgumentException("Part name is required for new parts.");
-
-                    part = new Part
-                    {
-                        Name = item.PartName,
-                        Description = string.Empty,
-                        CostPrice = item.UnitCost,
-                        UnitPrice = item.UnitPrice ?? (item.UnitCost * 1.2m),
-                        StockQuantity = 0,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.Parts.Add(part);
-                    await _context.SaveChangesAsync();
-                }
-
                 var subtotal = item.Quantity * item.UnitCost;
                 total += subtotal;
 

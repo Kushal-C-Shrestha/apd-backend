@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Net.Mail;
 using VehicleAPI.Data;

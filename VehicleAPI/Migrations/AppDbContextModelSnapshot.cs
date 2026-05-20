@@ -31,10 +31,14 @@ namespace VehicleAPI.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AppointmentId"));
 
                     b.Property<DateTime>("AppointmentDateTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ServiceType")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -67,7 +71,7 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsPaid")
                         .HasColumnType("boolean");
@@ -92,7 +96,7 @@ namespace VehicleAPI.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NotificationId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsRead")
                         .HasColumnType("boolean");
@@ -124,7 +128,7 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("IsUsed")
                         .HasColumnType("boolean");
@@ -146,12 +150,21 @@ namespace VehicleAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PartId"));
 
+                    b.Property<decimal>("CostPrice")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -178,7 +191,7 @@ namespace VehicleAPI.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RequestId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("PartId")
                         .HasColumnType("integer");
@@ -211,7 +224,11 @@ namespace VehicleAPI.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PurchaseId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("numeric");
@@ -266,12 +283,14 @@ namespace VehicleAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ReviewId"));
 
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Comment")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
@@ -280,6 +299,8 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("ReviewId");
+
+                    b.HasIndex("AppointmentId");
 
                     b.HasIndex("UserId");
 
@@ -333,7 +354,7 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("Discount")
                         .HasColumnType("numeric");
@@ -403,11 +424,7 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CustomerId")
-                        .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -427,13 +444,16 @@ namespace VehicleAPI.Migrations
                         .HasMaxLength(15)
                         .HasColumnType("character varying(15)");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
 
                     b.HasKey("UserId");
-
-                    b.HasIndex("CustomerId")
-                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -460,7 +480,13 @@ namespace VehicleAPI.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Model")
                         .IsRequired()
@@ -500,8 +526,12 @@ namespace VehicleAPI.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ContactPerson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -614,11 +644,19 @@ namespace VehicleAPI.Migrations
 
             modelBuilder.Entity("VehicleAPI.Models.Review", b =>
                 {
+                    b.HasOne("VehicleAPI.Models.Appointment", "Appointment")
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("VehicleAPI.Models.User", "User")
                         .WithMany("Reviews")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Appointment");
 
                     b.Navigation("User");
                 });

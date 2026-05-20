@@ -42,7 +42,7 @@ namespace VehicleAPI.Services.Implementations
             foreach (var item in dto.Items)
             {
                 var part = await _context.Parts.FindAsync(item.PartId);
-                if (part == null)
+                if (part == null || part.IsDeleted)
                     throw new KeyNotFoundException($"Part with ID {item.PartId} not found.");
 
                 if (part.StockQuantity < item.Quantity)
