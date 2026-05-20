@@ -107,6 +107,28 @@ namespace VehicleAPI.Services.Implementations
                     mail.To.Add(customerEmail);
                     await client.SendMailAsync(mail, stoppingToken);
                     _logger.LogInformation($"Sent overdue reminder to {customerEmail} for Credit ID {credit.CreditId}.");
+
+                    // Add notification for the customer
+                    db.Notifications.Add(new Notification
+                    {
+                        UserId = credit.Sale.UserId,
+                        Message = $"Friendly reminder: You have an unpaid credit of Rs. {credit.AmountDue:N0} from your purchase on {credit.Sale.CreatedAt:MMM dd, yyyy}.",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    // Add notification for admin
+                    var adminUser = await db.Users.FirstOrDefaultAsync(u => u.RoleId == 1, stoppingToken);
+                    if (adminUser != null)
+                    {
+                        db.Notifications.Add(new Notification
+                        {
+                            UserId = adminUser.UserId,
+                            Message = $"Credit payment reminder sent: {customerName} has an outstanding credit of Rs. {credit.AmountDue:N0}.",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    await db.SaveChangesAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {
