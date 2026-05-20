@@ -13,6 +13,8 @@ namespace VehicleAPI.Models
         [Required, MaxLength(15)]
         public string Phone { get; set; }
 
+        public string ContactPerson { get; set; } = string.Empty;
+
         [EmailAddress]
         public string Email { get; set; }
 

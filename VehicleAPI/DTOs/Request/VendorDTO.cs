@@ -7,6 +7,8 @@ namespace VehicleAPI.DTOs.Request
         [Required, MaxLength(100)]
         public string Name { get; set; }
 
+        public string ContactPerson { get; set; } = string.Empty;
+
         [Required, MaxLength(15)]
         public string Phone { get; set; }
 
@@ -20,6 +22,8 @@ namespace VehicleAPI.DTOs.Request
     {
         [Required, MaxLength(100)]
         public string Name { get; set; }
+
+        public string ContactPerson { get; set; } = string.Empty;
 
         [Required, MaxLength(15)]
         public string Phone { get; set; }
